@@ -1,155 +1,28 @@
 require('./config/config');
+const port = process.env.PORT;
 
 const _ = require('lodash');
 const express = require('express');
-const bodyParser = require('body-parser');
-const { ObjectID } = require('mongodb');
+const http = require('http');
+const socketio = require('socket.io');
 
 const { mongoose } = require('./db/mongoose'); // So that mongoose.Promise is set to global.Promise.
-const { Todo } = require('./models/todo');
-const { User } = require('./models/user');
-const { authenticate } = require('./middleware/authenticate');
+const apiRoutes = require('./api-routes');
+const SocketServer = require('./socket-server');
 
-let app = express();
-const port = process.env.PORT;
+const app = express();
+const server = http.createServer(app);
+const io = socketio(server);
+const socketServer = new SocketServer;
 
-app.use(bodyParser.json());
+socketServer.startSocketServer(io);
 
-app.post('/todos', authenticate, (req, res) => {
-    const todo = new Todo({
-        text: req.body.text,
-        _creator: req.user._id
-    });
+app.use('/', apiRoutes);
 
-    todo.save().then((doc) => {
-        res.send(doc);
-    }, (e) => {
-        res.status(400).send(e);
-    });
-
-});
-
-app.get('/todos', authenticate, (req, res) => {
-    Todo.find({
-        _creator: req.user._id
-    }).then((todos) => {
-        res.send({ todos });
-    }, (e) => {
-        res.status(400).send(e);
-    });
-});
-
-app.get('/todos/:id', authenticate, (req, res) => {
-    const id = req.params.id;
-
-    if ( !ObjectID.isValid(id) ) {
-        return res.status(404).send();
-    }
-
-    Todo.findOne({
-        _id: id,
-        _creator: req.user._id
-    }).then((todo) => {
-        if ( !todo ) {
-            return res.status(404).send();
-        }
-        res.send({ todo });
-    }).catch((e) => res.status(400).send());
-});
-
-app.delete('/todos/:id', authenticate, (req, res) => {
-    const id = req.params.id;
-
-    if ( !ObjectID.isValid(id) ) {
-        return res.status(404).send();
-    }
-
-    Todo.findOneAndRemove({
-        _id: id,
-        _creator: req.user._id
-    }).then((todo) => {
-        if ( !todo ) {
-            return res.status(404).send();
-        }
-        res.send({ todo });
-    }).catch((e) => {
-        res.status(400).send();
-    });
-
-});
-
-app.patch('/todos/:id', authenticate, (req, res) => {
-    const id = req.params.id;
-    const body = _.pick(req.body, ['text', 'completed']);
-
-    if ( !ObjectID.isValid(id) ) {
-        return res.status(404).send();
-    }
-
-    if ( _.isBoolean(body.completed) && body.completed ) {
-        body.completedAt = new Date().getTime();
-    } else {
-        body.completed = false;
-        body.completedAt = null;
-    }
-
-    Todo.findOneAndUpdate({
-        _id: id,
-        _creator: req.user._id
-    }, { $set: body }, { new: true }).then((todo) => {
-        if ( !todo ) {
-            return res.status(404).send();
-        }
-
-        res.send({ todo });
-    }).catch((e) => {
-        res.status(400).send();
-    });
-
-});
-
-// POST /users
-app.post('/users', (req, res) => {
-    const body = _.pick(req.body, ['email', 'password']);
-    const user = new User(body);
-
-    user.save().then(() => {
-        return user.generateAuthToken();
-    }).then((token) => {
-        res.header('x-auth', token).send(user); // x- denotes a custom header, not part of the HTTP standard.
-    }).catch((e) => {
-        res.status(400).send(e);
-    })
-});
-
-app.get('/users/me', authenticate, (req, res) => {
-    res.send(req.user);
-});
-
-app.post('/users/login', (req, res) => {
-    const body = _.pick(req.body, ['email', 'password']);
-
-    User.findByCredentials(body.email, body.password).then((user) => {
-        return user.generateAuthToken().then((token) => {
-            res.header('x-auth', token).send(user);
-        });
-    }).catch((e) => {
-        res.status(400).send();
-    });
-});
-
-app.delete('/users/me/token', authenticate, (req, res) => {
-    req.user.removeToken(req.token).then(() => {
-        res.status(200).send();
-    }, () => {
-        res.status(400).send();
-    });
-});
-
-app.listen(port, () => {
-    console.log(`Started on port ${port}`);
-    console.log('process.env.ENV');
-    console.log(process.env.ENV);
+server.listen(port, () => {
+  console.log(`Started on port ${port}`);
+  console.log('process.env.ENV');
+  console.log(process.env.ENV);
 });
 
 module.exports = { app };
