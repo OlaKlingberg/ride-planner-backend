@@ -7,7 +7,6 @@ const http = require('http');
 const socketio = require('socket.io');
 
 const { mongoose } = require('./db/mongoose'); // So that mongoose.Promise is set to global.Promise.
-const apiRoutes = require('./api-routes');
 const SocketServer = require('./socket-server');
 
 const app = express();
@@ -17,7 +16,7 @@ const socketServer = new SocketServer;
 
 socketServer.startSocketServer(io);
 
-app.use('/', apiRoutes);
+app.use('/users', require('./controllers/users.controller'));
 
 server.listen(port, () => {
   console.log(`Started on port ${port}`);

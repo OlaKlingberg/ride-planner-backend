@@ -1,20 +1,23 @@
-require('./config/config');
+require('../config/config');
 
 const _ = require('lodash');
 const express = require('express');
 const { ObjectID } = require('mongodb');
 const bodyParser = require('body-parser');
 
-const { mongoose } = require('./db/mongoose'); // So that mongoose.Promise is set to global.Promise.
-const { User } = require('./models/user');
-const { authenticate } = require('./middleware/authenticate');
+const { mongoose } = require('../db/mongoose'); // So that mongoose.Promise is set to global.Promise.
+const { User } = require('../models/user');
+const { authenticate } = require('../middleware/authenticate');
 
 const router = express.Router();
 
 router.use(bodyParser.json());
 
 // Routes
-router.post('/users', register);
+router.post('/', register);
+router.get('/me', authenticate, getCurrentUser);
+router.post('/login', login);
+router.delete('/me/token', authenticate, deleteUser)
 
 
 // Route handlers
@@ -31,11 +34,11 @@ function register(req, res) {
   });
 }
 
-router.get('/users/me', authenticate, (req, res) => {
+function getCurrentUser(req, res) {
   res.send(req.user);
-});
+}
 
-router.post('/users/login', (req, res) => {
+function login(req, res) {
   const body = _.pick(req.body, ['email', 'password']);
 
   User.findByCredentials(body.email, body.password).then((user) => {
@@ -45,14 +48,14 @@ router.post('/users/login', (req, res) => {
   }).catch((e) => {
     res.status(400).send();
   });
-});
+}
 
-router.delete('/users/me/token', authenticate, (req, res) => {
+function deleteUser (req, res) {
   req.user.removeToken(req.token).then(() => {
     res.status(200).send();
   }, () => {
     res.status(400).send();
   });
-});
+}
 
 module.exports = router;
