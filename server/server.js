@@ -21,8 +21,7 @@ app.use('/', apiRoutes);
 
 server.listen(port, () => {
   console.log(`Started on port ${port}`);
-  console.log('process.env.ENV');
-  console.log(process.env.ENV);
+  console.log('process.env.ENV:', process.env.ENV);
 });
 
 module.exports = { app };

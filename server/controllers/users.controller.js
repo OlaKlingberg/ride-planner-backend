@@ -13,9 +13,12 @@ const router = express.Router();
 
 router.use(bodyParser.json());
 
+// Routes
+router.post('/users', register);
 
-// POST /users
-router.post('/users', (req, res) => {
+
+// Route handlers
+function register(req, res) {
   const body = _.pick(req.body, ['email', 'password']);
   const user = new User(body);
 
@@ -25,8 +28,8 @@ router.post('/users', (req, res) => {
     res.header('x-auth', token).send(user); // x- denotes a custom header, not part of the HTTP standard.
   }).catch((e) => {
     res.status(400).send(e);
-  })
-});
+  });
+}
 
 router.get('/users/me', authenticate, (req, res) => {
   res.send(req.user);
