@@ -5,6 +5,7 @@ const _ = require('lodash');
 const express = require('express');
 const http = require('http');
 const socketio = require('socket.io');
+const expressJwt = require('express-jwt');
 
 const { mongoose } = require('./db/mongoose'); // So that mongoose.Promise is set to global.Promise.
 const SocketServer = require('./socket-server');
@@ -16,6 +17,10 @@ const socketServer = new SocketServer;
 
 socketServer.startSocketServer(io);
 
+// // Use JWT auth to secure the api
+// app.use(expressJwt({ secret: process.env.JWT_SECRET }).unless({ path: ['/users', '/users/login']}));
+
+// Api routes
 app.use('/users', require('./controllers/users.controller'));
 
 server.listen(port, () => {

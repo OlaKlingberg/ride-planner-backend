@@ -2,14 +2,17 @@ require('../config/config');
 
 const _ = require('lodash');
 const express = require('express');
-const { ObjectID } = require('mongodb');
 const bodyParser = require('body-parser');
+const expressJwt = require('express-jwt');
 
 const { mongoose } = require('../db/mongoose'); // So that mongoose.Promise is set to global.Promise.
 const { User } = require('../models/user');
-const { authenticate } = require('../middleware/authenticate');
+// const { authenticate } = require('../middleware/authenticate');
 
 const router = express.Router();
+
+// Use JWT auth to secure the api
+const authenticate = expressJwt({ secret: process.env.JWT_SECRET});
 
 router.use(bodyParser.json());
 
@@ -17,7 +20,7 @@ router.use(bodyParser.json());
 router.post('/', register);
 router.get('/me', authenticate, getCurrentUser);
 router.post('/login', login);
-router.delete('/me/token', authenticate, deleteUser)
+router.delete('/me/token', authenticate, deleteUser);
 
 
 // Route handlers
