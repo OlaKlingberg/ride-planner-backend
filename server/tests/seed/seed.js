@@ -7,6 +7,8 @@ const userOneId = new ObjectID();
 const userTwoId = new ObjectID();
 const users = [{
   _id: userOneId,
+  fname: 'Seed1',
+  lname: 'TestUser1',
   email: 'seed1@olaklingberg.com',
   password: 'seedOnePass',
   tokens: [{
@@ -15,6 +17,8 @@ const users = [{
   }]
 }, {
   _id: userTwoId,
+  fname: 'Seed2',
+  lname: 'TestUser2',
   email: 'seed2@olaklingberg.com',
   password: 'seedTwoPass',
   tokens: [{

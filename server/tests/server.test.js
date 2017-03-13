@@ -11,12 +11,14 @@ beforeEach(populateUsers);
 
 describe('POST /users', () => {
   it('should create a user', (done) => {
+    const fname = 'Tester1';
+    const lname = 'LastName2';
     const email = 'example@example.com';
     const password = '123mnb!';
 
     request(app)
       .post('/users')
-      .send({ email, password })
+      .send({ fname, lname, email, password })
       .expect(200)
       .expect((res) => {
         expect(res.body._id).toExist();
@@ -57,7 +59,7 @@ describe('POST /users', () => {
 });
 
 describe('POST /users/login', () => {
-  it('should resond with the user in the body and a token as an x-auth header', (done) => {
+  it('should respond with the user in the body and a token as an x-auth header', (done) => {
     request(app)
       .post('/users/login')
       .send({

@@ -5,6 +5,16 @@ const _ = require('lodash');
 const bcrypt = require('bcryptjs');
 
 let UserSchema = new mongoose.Schema({
+  fname: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  lname: {
+    type: String,
+    required: true,
+    trim: true
+  },
   email: {
     type: String,
     required: true,
@@ -33,12 +43,13 @@ let UserSchema = new mongoose.Schema({
   }]
 });
 
-// UserSchema.methods.toJSON = function () {   // Overrides the Mongoose toJSON function.
-//   const user = this;
-//   const userObject = user.toObject(); // Mongoose function that strips off Mongoose methods and properties.
-//                                       // Can't really say why it's needed here.
-//   return _.pick(userObject, ['_id', 'email', 'token']);
-// };
+// Overrides the Mongoose toJSON function, which seems to be applied behind the scenes when the response with the user is sent in users.controller.js. Only the members specified here are included on the user object in the response.
+UserSchema.methods.toJSON = function () {
+  const user = this;
+  const userObject = user.toObject();
+
+  return _.pick(user, ['_id', 'fname', 'lname', 'email']);
+};
 
 UserSchema.methods.generateAuthToken = function () {
   const user = this;

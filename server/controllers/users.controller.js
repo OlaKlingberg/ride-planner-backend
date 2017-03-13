@@ -22,7 +22,7 @@ router.post('/login', login);
 
 // Route handlers
 function registerNewUser(req, res) {
-  const body = _.pick(req.body, ['email', 'password']); // There is nothing else on req.body. Security measure?
+  const body = _.pick(req.body, ['fname', 'lname', 'email', 'password']);
   const user = new User(body);
 
   user.save()
@@ -35,15 +35,13 @@ function registerNewUser(req, res) {
 }
 
 function login(req, res) {
-  const body = _.pick(req.body, ['email', 'password']); // There is nothing else on req.body. Security measure?
-
-  User.findByCredentials(body.email, body.password)
+  User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
       return user.generateAuthToken().then((token) => {
         res.set({
           'Access-Control-Expose-Headers': 'x-auth',
           'x-auth': token,
-        }).send(_.pick(user, ['email']));
+        }).send(user);
       });
     })
     .catch((e) => {
