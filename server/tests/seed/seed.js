@@ -9,10 +9,18 @@ const users = [{
   _id: userOneId,
   email: 'seed1@olaklingberg.com',
   password: 'seedOnePass',
+  tokens: [{
+    access: 'auth',
+    token: jwt.sign({_id: userOneId, access: 'auth'}, process.env.JWT_SECRET)
+  }]
 }, {
   _id: userTwoId,
   email: 'seed2@olaklingberg.com',
   password: 'seedTwoPass',
+  tokens: [{
+    access: 'auth',
+    token: jwt.sign({_id: userTwoId, access: 'auth'}, process.env.JWT_SECRET)
+  }]
 }];
 
 

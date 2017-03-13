@@ -11,18 +11,18 @@ const { User } = require('../models/user');
 const router = express.Router();
 
 // Use JWT auth to secure the api
-const authenticateWithJwt = expressJwt({ secret: process.env.JWT_SECRET });
+// const authenticateWithJwt = expressJwt({ secret: process.env.JWT_SECRET });
 
 router.use(bodyParser.json());
 
 // Routes
-router.post('/', register);
+router.post('/', registerNewUser);
 router.post('/login', login);
 
 
 // Route handlers
-function register(req, res) {
-  const body = _.pick(req.body, ['email', 'password']); // Is there anything else on req.body?
+function registerNewUser(req, res) {
+  const body = _.pick(req.body, ['email', 'password']); // There is nothing else on req.body. Security measure?
   const user = new User(body);
 
   user.save()
@@ -35,13 +35,16 @@ function register(req, res) {
 }
 
 function login(req, res) {
-  const body = _.pick(req.body, ['email', 'password']); // Is there anything else on req.body?
+  const body = _.pick(req.body, ['email', 'password']); // There is nothing else on req.body. Security measure?
 
   User.findByCredentials(body.email, body.password)
     .then((user) => {
-      let token = user.generateAuthToken();
-      user.token = token;
-      res.send(_.pick(user, ['_id', 'email', 'token']));
+      return user.generateAuthToken().then((token) => {
+        res.set({
+          'Access-Control-Expose-Headers': 'x-auth',
+          'x-auth': token,
+        }).send(_.pick(user, ['email']));
+      });
     })
     .catch((e) => {
       res.status(400).send(e);

@@ -21,10 +21,16 @@ let UserSchema = new mongoose.Schema({
     require: true,
     minlength: 6
   },
-  token: {
-    type: String,
-    require: false
-  }
+  tokens: [{
+    access: {
+      type: String,
+      require: true
+    },
+    token: {
+      type: String,
+      require: true
+    }
+  }]
 });
 
 // UserSchema.methods.toJSON = function () {   // Overrides the Mongoose toJSON function.
@@ -36,9 +42,15 @@ let UserSchema = new mongoose.Schema({
 
 UserSchema.methods.generateAuthToken = function () {
   const user = this;
+  const access = 'auth';
   const token = jwt.sign({ _id: user._id.toHexString() }, process.env.JWT_SECRET);
 
-  return(token);
+  user.tokens.push({ access, token });
+
+  return user.save()
+    .then(() => {
+      return token;
+    });
 };
 
 UserSchema.statics.findByCredentials = function (email, password) {
