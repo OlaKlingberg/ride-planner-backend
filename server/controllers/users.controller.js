@@ -4,6 +4,7 @@ const _ = require('lodash');
 const express = require('express');
 const bodyParser = require('body-parser');
 const expressJwt = require('express-jwt');
+const { authenticate } = require("../middleware/authenticate");
 
 const { mongoose } = require('../db/mongoose'); // So that mongoose.Promise is set to global.Promise.
 const { User } = require('../models/user');
@@ -18,6 +19,8 @@ router.use(bodyParser.json());
 // Routes
 router.post('/', registerNewUser);
 router.post('/login', login);
+router.get('/authenticate-by-token', authenticate, authenticateByToken);
+router.post('/logout', authenticate, logout);
 
 
 // Route handlers
@@ -48,5 +51,19 @@ function login(req, res) {
       res.status(400).send(e);
     });
 }
+
+function authenticateByToken(req, res) {
+  res.status(200).send();
+}
+
+function logout(req, res) {
+    req.user.removeToken(req.token).then(() => {
+      res.status(200).send();
+    }, () => {
+      res.status(400).send();
+    });
+}
+
+
 
 module.exports = router;

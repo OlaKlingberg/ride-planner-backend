@@ -101,7 +101,41 @@ describe('POST /users/login', () => {
   });
 });
 
+describe('GET /users/authenticate-by-token', () => {
+  it('should respond with a 200 if the user has a valid token', (done) => {
+    request(app)
+      .get('/users/authenticate-by-token')
+      .set('x-auth', users[0].tokens[0].token)
+      .expect(200)
+      .end(done);
+  });
 
+  it('should respond with a 401 if the user does not have a valid token', (done) => {
+    request(app)
+      .get('/users/authenticate-by-token')
+      .set('x-auth', 'invalid mock token')
+      .expect(401)
+      .end(done);
+  });
+
+});
+
+describe('POST /users/logout', () => {
+  it('should remove auth token on logout', (done) => {
+    request(app)
+      .post('/users/logout')
+      .set('x-auth', users[0].tokens[0].token)
+      .expect(200)
+      .end((err, res) => {
+        if (err) done(err);
+
+        User.findById(users[0]._id).then((user) => {
+          expect(user.tokens.length).toBe(0);
+          done();
+        }).catch((e) => done(e));
+      });
+  });
+});
 
 
 

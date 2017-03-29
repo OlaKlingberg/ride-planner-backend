@@ -43,7 +43,7 @@ let UserSchema = new mongoose.Schema({
   }]
 });
 
-// Overrides the Mongoose toJSON function, which seems to be applied behind the scenes when the response with the user is sent in users.controller.js. Only the members specified here are included on the user object in the response.
+// Overrides the Mongoose toJSON function, which seems to be applied behind the scenes when the response with the user is sent in users.controller.js. Only the members specified here are included on the user object sent in the response.
 UserSchema.methods.toJSON = function () {
   const user = this;
   const userObject = user.toObject();
@@ -62,6 +62,33 @@ UserSchema.methods.generateAuthToken = function () {
     .then(() => {
       return token;
     });
+};
+
+UserSchema.methods.removeToken = function (token) {
+  const user = this;
+
+  return user.update({
+    $pull: {
+      tokens: { token }
+    }
+  });
+};
+
+UserSchema.statics.findByToken = function (token) {
+    const User = this;
+    let decoded;
+
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch ( e ) {
+      return Promise.reject();
+    }
+
+    return User.findOne({
+      '_id': decoded._id,
+      'tokens.token': token,
+      'tokens.access': 'auth'
+    })
 };
 
 UserSchema.statics.findByCredentials = function (email, password) {
