@@ -20,7 +20,7 @@ router.use(bodyParser.json());
 router.post('/', registerNewUser);
 router.post('/login', login);
 router.get('/authenticate-by-token', authenticate, authenticateByToken);
-router.post('/logout', authenticate, logout);
+router.delete('/logout', authenticate, logout);
 
 
 // Route handlers

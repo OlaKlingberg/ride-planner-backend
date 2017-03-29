@@ -120,10 +120,10 @@ describe('GET /users/authenticate-by-token', () => {
 
 });
 
-describe('POST /users/logout', () => {
+describe('DELETE /users/logout', () => {
   it('should remove auth token on logout', (done) => {
     request(app)
-      .post('/users/logout')
+      .delete('/users/logout')
       .set('x-auth', users[0].tokens[0].token)
       .expect(200)
       .end((err, res) => {
