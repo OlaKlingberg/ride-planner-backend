@@ -47,8 +47,8 @@ function login(req, res) {
         }).send(user);
       });
     })
-    .catch((e) => {
-      res.status(400).send(e);
+    .catch(() => {
+      res.status(401).send('Username or password is incorrect');
     });
 }
 
