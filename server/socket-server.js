@@ -6,7 +6,6 @@ module.exports = class SocketServer {
 
     let riders = [];
 
-
     io.on('connection', (socket) => {
       console.log("io.on('connection')");
       socket.emit('priceUpdate',currentPrice);
@@ -16,12 +15,10 @@ module.exports = class SocketServer {
         socket.broadcast.emit('priceUpdate',currentPrice);
       });
 
-      socket.on('newRider', (newRiderMarker, callback) => {
+      socket.on('newRider', (newRider, callback) => {
         console.log("io.on('newRider')");
-        console.log(socket.id);
-        riders.push(newRiderMarker);
-        console.log(riders);
-        io.emit('updateRidersArray', riders);
+        riders.push(newRider);
+        io.emit('updateRiders', riders);
         callback();
       });
 

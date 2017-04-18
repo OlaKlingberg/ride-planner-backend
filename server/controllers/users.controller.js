@@ -53,7 +53,7 @@ function login(req, res) {
 }
 
 function authenticateByToken(req, res) {
-  res.status(200).send();
+  res.status(200).send(req.user);
 }
 
 function logout(req, res) {
