@@ -6,26 +6,34 @@ module.exports = class SocketServer {
 
     let riders = [];
 
+    // let readyToEmit = false;
+
     io.on('connection', (socket) => {
       console.log("io.on('connection')");
 
       // Auction
-      socket.emit('priceUpdate',currentPrice);
+      socket.emit('priceUpdate', currentPrice);
       socket.on('bid', function (data) {
         currentPrice = parseInt(data);
-        socket.emit('priceUpdate',currentPrice);
-        socket.broadcast.emit('priceUpdate',currentPrice);
+        socket.emit('priceUpdate', currentPrice);
+        socket.broadcast.emit('priceUpdate', currentPrice);
       });
 
       // Rider Map 2
-      socket.emit('newRiderList', riders);
+      socket.emit('updatedRiderList', riders);
 
       socket.on('newRider', (newRider, callback) => {
         console.log("io.on('newRider')");
+
+        riders = riders.filter(rider => rider.email !== newRider.email);
         riders.push(newRider);
-        io.emit('newRiderList', riders);
+
+
+        io.emit('updatedRiderList', riders);
         console.log(riders);
         callback();
+
+
       });
 
       socket.on('removeRider', (user, callback) => {
@@ -35,7 +43,7 @@ module.exports = class SocketServer {
         riders = riders.filter(rider => rider.email !== user.email);
         console.log('removeRider. Should have removed');
         console.log(riders);
-        io.emit('newRiderList', riders);
+        io.emit('updatedRiderList', riders);
       });
 
 
