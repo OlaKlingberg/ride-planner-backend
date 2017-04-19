@@ -9,7 +9,7 @@ const expressJwt = require('express-jwt');
 const cors = require("cors");
 
 const { mongoose } = require('./db/mongoose'); // So that mongoose.Promise is set to global.Promise.
-const SocketServer = require('./socket-server');
+const SocketServer = require('./socket-server').SocketServer;
 
 const app = express();
 const server = http.createServer(app);

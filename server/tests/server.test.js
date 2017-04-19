@@ -8,6 +8,27 @@ const { users, populateUsers } = require('./seed/seed');
 
 beforeEach(populateUsers);
 
+describe('GET /users', () => {
+  it('should return all users if the user has a valid token', (done) => {
+    request(app)
+      .get('/users')
+      .set('x-auth', users[0].tokens[0].token)
+      .expect(200)
+      .expect((res) => {
+        expect(res.body.users.length).toBe(2);
+        expect(res.body.users[0].email).toBe('seed1@olaklingberg.com');
+      })
+      .end(done);
+  });
+
+  it('should respond with a 401 if the user does not have a valid token', (done) => {
+    request(app)
+      .get('/users')
+      .expect(401)
+      .end(done);
+  });
+});
+
 
 describe('POST /users', () => {
   it('should create a user', (done) => {
@@ -93,7 +114,7 @@ describe('POST /users/login', () => {
         email: users[1].email,
         password: 'incorrect-password'
       })
-      .expect(400)
+      .expect(401)
       .expect((res) => {
         expect(res.body.email).toNotExist();
       })

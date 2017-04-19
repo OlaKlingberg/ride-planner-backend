@@ -1,15 +1,26 @@
 const socketio = require('socket.io');
+const Rx = require("rxjs/Rx");
+const _ = require("underscore");
 
-module.exports = class SocketServer {
+let riders = [];
+let riders$ = new Rx.BehaviorSubject(riders);
+
+class SocketServer {
+
   startSocketServer(io) {
     let currentPrice = 0;
 
-    let riders = [];
-
-    // let readyToEmit = false;
+    // let riders = [];
+    // let riders$ = new Rx.BehaviorSubject(riders);
 
     io.on('connection', (socket) => {
       console.log("io.on('connection')");
+
+      riders$
+        .auditTime(15000)
+        .subscribe(riders => {
+          io.emit('riderList', riders);
+        });
 
       // Auction
       socket.emit('priceUpdate', currentPrice);
@@ -20,34 +31,29 @@ module.exports = class SocketServer {
       });
 
       // Rider Map 2
-      socket.emit('updatedRiderList', riders);
+      socket.emit('riderList', riders);
 
-      socket.on('newRider', (newRider, callback) => {
-        console.log("io.on('newRider')");
+      socket.on('rider', (newRider, callback) => {
+        console.log("io.on('rider')");
 
         riders = riders.filter(rider => rider.email !== newRider.email);
-        riders.push(newRider);
+        riders.push(_.pick(newRider, 'fname', 'lname', 'email', 'lat', 'lng'));
 
+        socket.emit('riderList', riders);
 
-        io.emit('updatedRiderList', riders);
-        console.log(riders);
-        callback();
-
-
+        riders$.next(riders);
       });
 
       socket.on('removeRider', (user, callback) => {
-        console.log('removeRider. About to remove', user);
-        // console.log(user);
-        console.log(riders);
-        riders = riders.filter(rider => rider.email !== user.email);
-        console.log('removeRider. Should have removed');
-        console.log(riders);
-        io.emit('updatedRiderList', riders);
+        if (user) {
+          riders = riders.filter(rider => rider.email !== user.email);
+          io.emit('riderList', riders);
+        }
       });
-
-
     });
 
   }
-};
+}
+
+
+module.exports = { SocketServer, riders$ };
