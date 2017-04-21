@@ -11,7 +11,9 @@ const { User } = require('../models/user');
 
 const router = express.Router();
 
-const riders$ = require('../socket-server.js').riders$;
+const { RiderService } = require('../utils/rider-service');
+// const riderService = new RiderService();
+
 
 // Use JWT auth to secure the api
 // const authenticateWithJwt = expressJwt({ secret: process.env.JWT_SECRET });
@@ -78,15 +80,7 @@ function logout(req, res) {
 }
 
 function getAllRiders(req, res) {
-  let riderEmails = riders$.value.map(rider => rider.email);
-
-  User.find({
-    "email": { "$in": riderEmails }
-  })
-    .then(riders => {
-      console.log("getAllRiders:", riders);
-      res.send(riders);
-    });
+  res.send(RiderService.getRiders());
 }
 
 module.exports = router;

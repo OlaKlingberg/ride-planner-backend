@@ -2,55 +2,47 @@ const socketio = require('socket.io');
 const Rx = require("rxjs/Rx");
 const _ = require("underscore");
 
-// let riders = [];
-let riders$ = new Rx.BehaviorSubject([]);
+const { RideService } = require('./utils/ride-service');
+const { RiderService } = require('./utils/rider-service');
 
 class SocketServer {
 
   startSocketServer(io) {
-    let currentPrice = 0;
 
     io.on('connection', (socket) => {
-      console.log("io.on('connection'). socket.id:", socket.id);
+      console.log("Connection! socket.id:", socket.id);
+      socket.emit('rides', RideService.getRides());
+      socket.emit('riderList', RiderService.getRidersPublic());
 
-      riders$
-        .auditTime(15000)
+      RiderService.getRidersPublic$()
+        // .auditTime(10000)
         .subscribe(riders => {
           io.emit('riderList', riders);
         });
 
-      // Auction
-      // socket.emit('priceUpdate', currentPrice);
-      // socket.on('bid', function (data) {
-      //   currentPrice = parseInt(data);
-      //   socket.emit('priceUpdate', currentPrice);
-      //   socket.broadcast.emit('priceUpdate', currentPrice);
-      // });
-
-      // Rider Map 2
-      socket.emit('riderList', riders$.value);
-
       socket.on('rider', (newRider, callback) => {
-        console.log("io.on('rider')");
+        console.log("rider:", newRider);
+        RiderService.addRider(newRider, socket.id);
 
-        let riders = riders$.value.filter(rider => rider.email !== newRider.email);
-        riders.push(_.pick(newRider, 'fname', 'lname', 'email', 'lat', 'lng'));
-        riders$.next(riders);
-        socket.emit('riderList', riders);
-
+        socket.emit('riderList', RiderService.getRidersPublic());
+        // callback();
       });
 
-      socket.on('removeRider', (user, callback) => {
-        if (user) {
-          let riders = riders$.value.filter(rider => rider.email !== user.email);
-          riders$.next(riders);
-          io.emit('riderList', riders);
-        }
+      socket.on('removeRider', () => {
+        console.log('removeRider');
+        RiderService.removeRider(socket.id);
+        // callback();
       });
+
+      socket.on('disconnect', () => {
+        console.log("Disconnected:", socket.id);
+        // RiderService.removeRider(socket.id);
+      })
+
     });
 
   }
 }
 
 
-module.exports = { SocketServer, riders$ };
+module.exports = { SocketServer };
