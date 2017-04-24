@@ -1,38 +1,37 @@
 const _ = require('lodash');
-const Rx = require("rxjs/Rx");
 
-riders$ = new Rx.BehaviorSubject([]);
-ridersPublic$ = new Rx.BehaviorSubject([]);
-
-riders$.subscribe((riders) => {
-  ridersPublic$.next(riders.map(rider => _.pick(rider, 'fname', 'lname', 'socketId', 'lat', 'lng')));
-});
+let riders = [];
 
 const RiderService = {
-  addRider: (newRider, socketId) => {
-    newRider.socketId = socketId;
-    let riders = riders$.value.filter(rider => rider.email !== newRider.email);
-    riders.push(newRider);
-    riders$.next(riders);
+  addRider: riderToAdd => {
+    riders = riders.filter(rider => rider.email !== riderToAdd.email);
+    riders.push(riderToAdd);
+
+    return riders;
   },
 
   removeRider: socketId => {
-    let riders = riders$.value.filter(rider => rider.socketId !== socketId);
-    riders$.next(riders);
+    let ride;
+    let rider = riders.find(rider => rider.socketId === socketId);
+
+    if (rider) ride = rider.ride;
+
+    riders = riders.filter(rider => rider.socketId !== socketId);
+
+    return ride;
   },
 
-  getRiders: () => riders$.value,
+  getRiders: (ride) => {
+    return riders.filter(rider => rider.ride === ride);
+  },
 
-  getRidersPublic: () => ridersPublic$.value,
-
-  getRiders$: () => riders$,
-
-  getRidersPublic$: () => ridersPublic$
-
+  getRidersPublic: (ride) => {
+    let ridersOnRide = riders.filter(rider => rider.ride === ride);
+    return ridersOnRide.map(rider => _.pick(rider, 'fname', 'lname', 'socketId', 'lat', 'lng'));
+  },
 
 };
 
 Object.freeze(RiderService);
 module.exports = { RiderService };
-
 

@@ -1,5 +1,4 @@
-rides = ['Rockland Lakes', 'Asbury Park'];
-
+const rides = ['Rockland Lakes', 'Asbury Park'];
 
 const RideService = {
 
@@ -19,3 +18,6 @@ const RideService = {
 
 Object.freeze(RideService);
 module.exports = { RideService };
+
+
+

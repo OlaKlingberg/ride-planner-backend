@@ -12,8 +12,6 @@ const { User } = require('../models/user');
 const router = express.Router();
 
 const { RiderService } = require('../utils/rider-service');
-// const riderService = new RiderService();
-
 
 // Use JWT auth to secure the api
 // const authenticateWithJwt = expressJwt({ secret: process.env.JWT_SECRET });

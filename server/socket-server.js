@@ -1,48 +1,49 @@
-const socketio = require('socket.io');
-const Rx = require("rxjs/Rx");
+// const socketio = require('socket.io');
 const _ = require("underscore");
 
 const { RideService } = require('./utils/ride-service');
 const { RiderService } = require('./utils/rider-service');
 
-class SocketServer {
+let counter = 0;
 
+class SocketServer {
   startSocketServer(io) {
 
     io.on('connection', (socket) => {
-      console.log("Connection! socket.id:", socket.id);
-      socket.emit('rides', RideService.getRides());
-      socket.emit('riderList', RiderService.getRidersPublic());
+      socket.emit('availableRides', RideService.getRides());
 
-      RiderService.getRidersPublic$()
-        // .auditTime(10000)
-        .subscribe(riders => {
-          io.emit('riderList', riders);
-        });
+      socket.on('rider', (rider, callback) => {
+        rider.socketId = socket.id;
+        let ride = rider.ride;
 
-      socket.on('rider', (newRider, callback) => {
-        console.log("rider:", newRider);
-        RiderService.addRider(newRider, socket.id);
+        RiderService.addRider(rider);
+        socket.join(ride);
+        io.to(ride).emit('riderList', RiderService.getRidersPublic(ride));
 
-        socket.emit('riderList', RiderService.getRidersPublic());
-        // callback();
       });
 
-      socket.on('removeRider', () => {
-        console.log('removeRider');
-        RiderService.removeRider(socket.id);
-        // callback();
+      socket.on('removeRider', (rider, callback) => {
+        let ride = RiderService.removeRider(socket.id);
+
+        if ( ride ) {
+          socket.broadcast.to(ride).emit('riderList', RiderService.getRidersPublic(ride));
+          socket.emit('riderList', null);
+          socket.leave(ride);
+        }
       });
 
       socket.on('disconnect', () => {
-        console.log("Disconnected:", socket.id);
-        // RiderService.removeRider(socket.id);
-      })
+        let ride = RiderService.removeRider(socket.id);
+        if ( ride ) {
+          socket.broadcast.to(ride).emit('riderList', RiderService.getRidersPublic(ride));
+          socket.emit('riderList', null);
+          socket.leave(ride);
+        }
+      });
 
     });
 
   }
 }
-
 
 module.exports = { SocketServer };
