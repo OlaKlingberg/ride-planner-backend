@@ -24,7 +24,7 @@ router.post('/', registerNewUser);
 router.post('/login', login);
 router.get('/authenticate-by-token', authenticate, authenticateByToken);
 router.delete('/logout', authenticate, logout);
-router.get('/riders', authenticate, getAllRiders);
+router.get('/riders', authenticate, getAllRiders);  // Do I need this at all?
 
 
 // Route handlers
@@ -78,7 +78,7 @@ function logout(req, res) {
 }
 
 function getAllRiders(req, res) {
-  res.send(RiderService.getRiders());
+  res.send(RiderService.getRiders('Asbury Park')); // Todo: Replace with variable -- if I need this function at all.
 }
 
 module.exports = router;
