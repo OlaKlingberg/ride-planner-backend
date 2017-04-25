@@ -25,6 +25,9 @@ app.use(cors());
 
 // Api routes
 app.use('/users', require('./controllers/users.controller'));
+app.get('/', (req, res) => {
+  res.send("RidePlanner API is up and running!");
+});
 
 server.listen(port, () => {
   console.log(`Started on port ${port}`);
