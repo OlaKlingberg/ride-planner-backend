@@ -54,7 +54,9 @@ function login(req, res) {
   console.log(`About to try to log in ${req.body.email} with password ${req.body.password}`);
   User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
+    console.log("Back in login(). User:", user);
       return user.generateAuthToken().then((token) => {
+        console.log("Just generated token:", token);
         res.set({
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Expose-Headers': ['x-auth', 'Access-Control-Allow-Origin'],
