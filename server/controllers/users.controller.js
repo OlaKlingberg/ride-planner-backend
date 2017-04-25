@@ -50,21 +50,35 @@ function registerNewUser(req, res) {
     });
 }
 
+// function login(req, res) {
+//   User.findByCredentials(req.body.email, req.body.password)
+//     .then((user) => {
+//       return user.generateAuthToken().then((token) => {
+//         res.set({
+//           'Access-Control-Allow-Origin': '*',
+//           'Access-Control-Expose-Headers': ['x-auth', 'Access-Control-Allow-Origin'],
+//           'x-auth': token,
+//         }).send(user);
+//       });
+//     })
+//     .catch(() => {
+//       res.status(401).send('Username or password is incorrect');
+//     });
+// }
+
+// Debugging copy
 function login(req, res) {
   User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
       return user.generateAuthToken().then((token) => {
-        res.set({
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Expose-Headers': ['x-auth', 'Access-Control-Allow-Origin'],
-          'x-auth': token,
-        }).send(user);
+        res.header('x-auth', token).send(user);
       });
     })
     .catch(() => {
       res.status(401).send('Username or password is incorrect');
     });
 }
+
 
 function authenticateByToken(req, res) {
   res.status(200).send(req.user);
