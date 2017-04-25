@@ -7,7 +7,7 @@ const RiderService = {
     riders = riders.filter(rider => rider.email !== riderToAdd.email);
     riders.push(riderToAdd);
 
-    return riders;
+    // return riders;
   },
 
   removeRider: socketId => {
