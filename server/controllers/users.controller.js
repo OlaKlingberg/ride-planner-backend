@@ -51,6 +51,7 @@ function registerNewUser(req, res) {
 }
 
 function login(req, res) {
+  console.log(`About to try to log in ${req.body.email} with password ${req.body.password}`);
   User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
       return user.generateAuthToken().then((token) => {
