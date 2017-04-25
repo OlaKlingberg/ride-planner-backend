@@ -55,6 +55,7 @@ function login(req, res) {
     .then((user) => {
       return user.generateAuthToken().then((token) => {
         res.set({
+          'Access-Control-Allow-Origin': '*',
           'Access-Control-Expose-Headers': 'x-auth',
           'x-auth': token,
         }).send(user);
