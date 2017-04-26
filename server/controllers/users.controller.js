@@ -51,12 +51,9 @@ function registerNewUser(req, res) {
 }
 
 function login(req, res) {
-  console.log(`About to try to log in ${req.body.email} with password ${req.body.password}`);
   User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
-    console.log("Back in login(). User:", user);
       return user.generateAuthToken().then((token) => {
-        console.log("Just generated token:", token);
         res.set({
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Expose-Headers': ['x-auth', 'Access-Control-Allow-Origin'],
@@ -68,25 +65,6 @@ function login(req, res) {
       res.status(401).send('Username or password is incorrect');
     });
 }
-
-// Debugging copy
-// function login(req, res) {
-//   User.findByCredentials(req.body.email, req.body.password)
-//     .then((user) => {
-//       return user.generateAuthToken().then((token) => {
-//         res.set({
-//           'Access-Control-Allow-Origin': '*',
-//           'Access-Control-Expose-Headers': ['x-auth', 'Access-Control-Allow-Origin'],
-//           'x-auth': token,
-//         }).send(user);
-//       });
-//     })
-//     .catch((e) => {
-//       res.status(401)
-//         .send(typeof e);
-//     });
-// }
-
 
 function authenticateByToken(req, res) {
   res.status(200).send(req.user);

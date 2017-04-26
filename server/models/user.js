@@ -94,23 +94,15 @@ UserSchema.statics.findByToken = function (token) {
 UserSchema.statics.findByCredentials = function (email, password) {
   const User = this;
 
-  console.log(`user.js. About to look for ${email} with password ${password}`);
-
   return User.findOne({ email }).then((user) => {
-    console.log(`Found in the database: ${user}`);
     if ( !user ) {
-      console.log("About to reject.");
       return Promise.reject();
     }
-    console.log("About to return new Promise.");
     return new Promise((resolve, reject) => {
       bcrypt.compare(password, user.password, (err, res) => {
-        console.log("Just compared passwords.");
         if ( res ) {
-          console.log("Password was correct. About to resolve with user.");
           resolve(user);
         } else {
-          console.log("Password was incorrect. About to reject.");
           reject();
         }
       });
