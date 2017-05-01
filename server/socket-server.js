@@ -19,7 +19,6 @@ class SocketServer {
         RiderService.addRider(rider);
         socket.join(ride);
         io.to(ride).emit('riderList', RiderService.getRidersPublic(ride));
-
       });
 
       socket.on('removeRider', (rider, callback) => {
