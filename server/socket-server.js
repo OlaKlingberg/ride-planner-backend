@@ -24,7 +24,7 @@ class SocketServer {
         rider.socketId = socket.id;
         RiderService.addOrUpdateRider(rider);
 
-        console.log(`About to emit rider ${rider.fname} ${rider.lname} to riders on ride ${rider.ride}.`);
+        // console.log(`About to emit rider ${rider.fname} ${rider.lname} to riders on ride ${rider.ride}.`);
         io.in(rider.ride).emit('rider', _.pick(rider, '_id', 'ride', 'fname', 'lname', 'lat', 'lng'));
       });
 
@@ -35,6 +35,11 @@ class SocketServer {
         io.to(rider.ride).emit('removeRider', _.pick(rider, '_id'));
         socket.leave(rider.ride);
         callback();
+      });
+
+      socket.on('clearServerOfRiders', ride => {
+        RiderService.removeAllRiders(ride);
+        io.in(ride).emit('fullRiderList', []);
       });
 
       socket.on('disconnect', () => {
