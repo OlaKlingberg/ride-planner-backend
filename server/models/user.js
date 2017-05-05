@@ -5,50 +5,57 @@ const _ = require('lodash');
 const bcrypt = require('bcryptjs');
 
 let UserSchema = new mongoose.Schema({
-  fname: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  lname: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  email: {
-    type: String,
-    required: true,
-    trim: true,
-    minlength: 4,
-    unique: true,
-    validate: {
-      validator: validator.isEmail,
-      message: '{VALUE} is not a valid email'
-    }
-  },
-  password: {
-    type: String,
-    require: true,
-    minlength: 6
-  },
-  tokens: [{
-    access: {
+    fname: {
       type: String,
-      require: true
+      required: true,
+      trim: true,
     },
-    token: {
+    lname: {
       type: String,
-      require: true
-    }
-  }]
-});
+      required: true,
+      trim: true
+    },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 4,
+      unique: true,
+      validate: {
+        validator: validator.isEmail,
+        message: '{VALUE} is not a valid email'
+      }
+    },
+    password: {
+      type: String,
+      require: true,
+      minlength: 6
+    },
+    leader: {
+      type: Boolean,
+      require: false,
+    },
+    tokens: [{
+      access: {
+        type: String,
+        require: true
+      },
+      token: {
+        type: String,
+        require: true
+      }
+    }]
+  })
+;
 
-// Overrides the Mongoose toJSON function, which seems to be applied behind the scenes when the response with the user is sent in users.controller.js. Only the members specified here are included on the user object sent in the response.
+// Overrides the Mongoose toJSON function, which seems to be applied behind the scenes when the response with the user
+// is sent in users.controller.js. Only the members specified here are included on the user object sent in the
+// response.
 UserSchema.methods.toJSON = function () {
   const user = this;
   const userObject = user.toObject();
 
-  return _.pick(userObject, ['_id', 'fname', 'lname', 'email']);
+  return _.omit(userObject, ['password', 'tokens', '__v']);
 };
 
 UserSchema.methods.generateAuthToken = function () {
@@ -75,20 +82,20 @@ UserSchema.methods.removeToken = function (token) {
 };
 
 UserSchema.statics.findByToken = function (token) {
-    const User = this;
-    let decoded;
+  const User = this;
+  let decoded;
 
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch ( e ) {
-      return Promise.reject();
-    }
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch ( e ) {
+    return Promise.reject();
+  }
 
-    return User.findOne({
-      '_id': decoded._id,
-      'tokens.token': token,
-      'tokens.access': 'auth'
-    })
+  return User.findOne({
+    '_id': decoded._id,
+    'tokens.token': token,
+    'tokens.access': 'auth'
+  })
 };
 
 UserSchema.statics.findByCredentials = function (email, password) {

@@ -20,12 +20,11 @@ class SocketServer {
       });
 
       socket.on('rider', (rider, callback) => {
-        console.log(`on:rider: ${rider.fname} ${rider.lname}`);
+        // console.log(`on:rider: ${rider.fname} ${rider.lname}`);
         rider.socketId = socket.id;
         RiderService.addOrUpdateRider(rider);
 
-        // console.log(`About to emit rider ${rider.fname} ${rider.lname} to riders on ride ${rider.ride}.`);
-        io.in(rider.ride).emit('rider', _.pick(rider, '_id', 'ride', 'fname', 'lname', 'lat', 'lng'));
+        io.in(rider.ride).emit('rider', _.omit(rider, 'email'));
       });
 
       socket.on('removeRider', (rider, callback) => {
@@ -37,6 +36,7 @@ class SocketServer {
         callback();
       });
 
+      // For development.
       socket.on('clearServerOfRiders', ride => {
         RiderService.removeAllRiders(ride);
         io.in(ride).emit('fullRiderList', []);
@@ -48,8 +48,9 @@ class SocketServer {
 
         if ( rider ) {
           RiderService.markAsDisconnected(rider);
+          rider.disconnected = true;
 
-          io.to(rider.ride).emit('disconnected', _.pick(rider, '_id'));
+          io.to(rider.ride).emit('disconnectedRider', _.omit(rider, 'email'));
           socket.leave(rider.ride);
         }
 

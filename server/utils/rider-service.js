@@ -2,7 +2,6 @@ const _ = require('lodash');
 
 let riders = [];
 
-
 const RiderService = {
   addOrUpdateRider: riderToAddOrRemove => {
     riders = riders.filter(rider => rider._id !== riderToAddOrRemove._id);
@@ -15,18 +14,16 @@ const RiderService = {
 
   removeAllRiders: ride => {
     riders = riders.filter(rider => rider.ride !== ride);
-    console.log(`All riders on ride ${ride} have been removed! -------------`);
   },
 
   getRider: socketId => {
     return riders.find(rider => rider.socketId === socketId);
   },
 
-  markAsDisconnected: riderToMarkAsDisconnected => {
-    let index = _.findIndex(riders, rider => rider._id === riderToMarkAsDisconnected._id);
+  markAsDisconnected: disRider => {
+    let index = _.findIndex(riders, rider => rider._id === disRider._id);
     if ( index >= 0 ) {
       riders[index].disconnected = true;
-
     }
   },
 
@@ -36,9 +33,7 @@ const RiderService = {
 
   getFullRidersListPublicInfo: (ride) => {
     let onRide = riders.filter(rider => rider.ride === ride);
-    let toReturn = onRide.map(rider => _.pick(rider, 'fname', 'lname'));
-    // console.log(toReturn);
-    return onRide.map(rider => _.pick(rider, '_id', 'ride', 'fname', 'lname', 'lat', 'lng'));
+    return onRide.map(rider => _.omit(rider, 'email'));
   },
 
 };
