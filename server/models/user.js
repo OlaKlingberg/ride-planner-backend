@@ -15,6 +15,11 @@ let UserSchema = new mongoose.Schema({
       required: true,
       trim: true
     },
+    phone: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     email: {
       type: String,
       required: true,
@@ -30,6 +35,16 @@ let UserSchema = new mongoose.Schema({
       type: String,
       require: true,
       minlength: 6
+    },
+    ename: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    ephone: {
+      type: String,
+      required: false,
+      trim: true,
     },
     leader: {
       type: Boolean,

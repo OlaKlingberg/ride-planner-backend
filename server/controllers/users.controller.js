@@ -38,7 +38,7 @@ function getAllUsers(req, res) {
 }
 
 function registerNewUser(req, res) {
-  const body = _.pick(req.body, ['fname', 'lname', 'email', 'password']);
+  const body = _.pick(req.body, ['fname', 'lname', 'phone', 'email', 'password', 'ename', 'ephone']);
   const user = new User(body);
 
   user.save()
