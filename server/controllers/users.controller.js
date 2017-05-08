@@ -51,9 +51,14 @@ function registerNewUser(req, res) {
 }
 
 function login(req, res) {
+  console.log("users.controller.login");
+  console.log(`email:${req.body.email}.`);
+  console.log(`password:${req.body.password}.`);
   User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
-      return user.generateAuthToken().then((token) => {
+    console.log("user:", user);
+      return user.generateAuthToken().then(token => {
+        console.log("About to set token and send user.");
         res.set({
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Expose-Headers': ['x-auth', 'Access-Control-Allow-Origin'],
