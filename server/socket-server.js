@@ -25,7 +25,9 @@ class SocketServer {
       socket.on('joinRide', ride => {
         console.log('joinRide. ride:', ride);
         socket.join(ride);
+      });
 
+      socket.on('giveMeFullRiderList', ride => {
         let fullRiderList = RiderService.getFullRidersListPublicInfo(ride);
         socket.emit('fullRiderList', RiderService.getFullRidersListPublicInfo(ride));
       });
