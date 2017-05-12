@@ -21,10 +21,14 @@ const RiderService = {
   },
 
   markAsDisconnected: disRider => {
+    console.log('markAsDisconnected');
     let index = _.findIndex(riders, rider => rider._id === disRider._id);
     if ( index >= 0 ) {
       riders[index].disconnected = true;
+      riders[index].disconnectTime = Date.now();
     }
+
+    return riders[index];
   },
 
   getFullRidersList: (ride) => {
@@ -33,8 +37,20 @@ const RiderService = {
 
   getFullRidersListPublicInfo: (ride) => {
     let onRide = riders.filter(rider => rider.ride === ride);
-    return onRide.map(rider => _.omit(rider, 'email'));
+
+    return onRide.map(rider => {
+      if ( rider.leader ) {
+        return _.omit(rider, 'email', 'emergencyName', 'emergencyPhone');
+      } else {
+        return _.omit(rider, 'email', 'phone', 'emergencyName', 'emergencyPhone');
+      }
+    });
   },
+
+  getRideLeaders(ride) {
+    let onRide = riders.filter(rider => rider.ride === ride);
+    return onRide.filter(rider => rider.leader);
+  }
 
 };
 

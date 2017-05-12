@@ -38,7 +38,7 @@ function getAllUsers(req, res) {
 }
 
 function registerNewUser(req, res) {
-  const body = _.pick(req.body, ['fname', 'lname', 'phone', 'email', 'password', 'ename', 'ephone']);
+  const body = _.pick(req.body, ['fname', 'lname', 'phone', 'email', 'password', 'emergencyName', 'emergencyPhone']);
   const user = new User(body);
 
   user.save()
@@ -56,7 +56,7 @@ function login(req, res) {
   console.log(`password:${req.body.password}.`);
   User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
-    console.log("user:", user);
+    // console.log("user:", user);
       return user.generateAuthToken().then(token => {
         console.log("About to set token and send user.");
         res.set({

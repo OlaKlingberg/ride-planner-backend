@@ -36,12 +36,12 @@ let UserSchema = new mongoose.Schema({
       require: true,
       minlength: 6
     },
-    ename: {
+    emergencyName: {
       type: String,
       required: false,
       trim: true,
     },
-    ephone: {
+    emergencyPhone: {
       type: String,
       required: false,
       trim: true,
@@ -120,7 +120,7 @@ UserSchema.statics.findByCredentials = function (email, password) {
   const User = this;
 
   return User.findOne({ email }).then(user => {
-    console.log("user:", user);
+    console.log(`UserSchema.statics.findByCredentials. Found: ${user.fname} ${user.lname}`);
     if ( !user ) {
       return Promise.reject();
     }
