@@ -58,7 +58,6 @@ function login(req, res) {
     .then((user) => {
     // console.log("user:", user);
       return user.generateAuthToken().then(token => {
-        console.log("About to set token and send user.");
         res.set({
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Expose-Headers': ['x-auth', 'Access-Control-Allow-Origin'],

@@ -45,23 +45,20 @@ class SocketServer {
       });
 
       socket.on('rider', ({rider, token}, callback) => {
-        // console.log(`${rider.fname} ${rider.lname}. ${rider.phone}. Leader: ${rider.leader}.`);
         rider.socketId = socket.id;
+        console.log(`${rider.fname} ${rider.lname}. ${rider.socketId}`);
         RiderService.addOrUpdateRider(rider);
 
         // Send ride leaders' (and only ride leaders') phone numbers to all riders.
         if (rider.leader) {
-          console.log(`${rider.fname} ${rider.lname} is a leader, so include phone: ${rider.phone}`);
           io.in(rider.ride).emit('rider', _.omit(rider, 'email', 'emergencyName', 'emergencyPhone'));
         } else {
-          console.log(`${rider.fname} ${rider.lname} is NOT a leader, so omit phone.`);
           io.in(rider.ride).emit('rider', _.omit(rider, 'email', 'phone', 'emergencyName', 'emergencyPhone'));
         }
 
         // Send full information to ride leaders.
         let rideLeaders = RiderService.getRideLeaders(rider.ride);
         rideLeaders.forEach(leader => {
-          console.log(`About to emit full rider info on ${rider.fname} ${rider.lname} to ride leader ${leader.fname} ${leader.lname}.`);
           io.to(leader.socketId).emit('rider', rider);
         });
       });

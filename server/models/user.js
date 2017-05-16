@@ -78,7 +78,8 @@ UserSchema.methods.generateAuthToken = function () {
   const access = 'auth';
   const token = jwt.sign({ _id: user._id.toHexString() }, process.env.JWT_SECRET);
 
-  user.tokens.push({ access, token });
+  user.tokens.push({ access, token });  // Allows user to be logged in on several devices at once.
+  if (user.tokens.length > 2) user.tokens.shift();  // You can only be logged in on two devices at a time.
 
   return user.save()
     .then(() => {
