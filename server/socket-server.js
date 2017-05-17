@@ -14,6 +14,7 @@ class SocketServer {
       socket.on('admin', token => {
         console.log("io.on('admins')");
         User.findByToken(token).then(user => {
+          console.log(`About to check if ${user.fname} ${user.lname} admin. Admin: ${user.admin}.`);
           if (user.admin) socket.join('admins');
         }).catch(err => {
           console.log("err:", err); // Todo: Handle error. Someone is pretending to be an admin.
@@ -79,6 +80,7 @@ class SocketServer {
       });
 
       socket.on('debugging', message => {
+        console.log("debugging", message);
         io.in('admins').emit('debugging', message);
       });
 

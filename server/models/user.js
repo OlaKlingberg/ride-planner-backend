@@ -39,16 +39,20 @@ let UserSchema = new mongoose.Schema({
     emergencyName: {
       type: String,
       required: false,
-      trim: true,
+      trim: true
     },
     emergencyPhone: {
       type: String,
       required: false,
-      trim: true,
+      trim: true
+    },
+    admin: {
+      type: Boolean,
+      require: false
     },
     leader: {
       type: Boolean,
-      require: false,
+      require: false
     },
     tokens: [{
       access: {
@@ -115,19 +119,14 @@ UserSchema.statics.findByToken = function (token) {
 };
 
 UserSchema.statics.findByCredentials = function (email, password) {
-  console.log("UserSchema.statics.findByCredentials");
-  console.log(`email:${email}.`);
-  console.log(`password:${password}`);
   const User = this;
 
   return User.findOne({ email }).then(user => {
-    console.log(`UserSchema.statics.findByCredentials. Found: ${user.fname} ${user.lname}`);
     if ( !user ) {
       return Promise.reject();
     }
     return new Promise((resolve, reject) => {
       bcrypt.compare(password, user.password, (err, res) => {
-        console.log("res:", res);
         if ( res ) {
           resolve(user);
         } else {
