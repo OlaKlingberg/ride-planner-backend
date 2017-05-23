@@ -3,13 +3,28 @@ const _ = require('lodash');
 let riders = [];
 
 const RiderService = {
-  addOrUpdateRider: riderToAddOrRemove => {
-    riders = riders.filter(rider => rider._id !== riderToAddOrRemove._id);
-    riders.push(riderToAddOrRemove);
+  addRider: rider => {
+    riders.push(rider);
   },
 
   removeRider: riderToRemove => {
+    rider = riders.filter(rider => rider._id === riderToRemove._id);
     riders = riders.filter(rider => rider._id !== riderToRemove._id);
+
+    return rider;
+  },
+
+  updateRider: riderToUpdate => {
+    let index = _.findIndex(riders, rider => rider._id === riderToUpdate._id);
+    riders[index].lat = riderToUpdate.lat;
+    riders[index].lng = riderToUpdate.lng;
+
+    return riders[index];
+  },
+
+  addOrUpdateRider: riderToAddOrRemove => {
+    riders = riders.filter(rider => rider._id !== riderToAddOrRemove._id);
+    riders.push(riderToAddOrRemove);
   },
 
   removeAllRiders: ride => {
