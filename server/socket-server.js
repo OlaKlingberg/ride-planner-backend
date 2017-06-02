@@ -8,105 +8,119 @@ class SocketServer {
   startSocketServer(io) {
 
     io.on('connection', (socket) => {
-      console.log("connection. socket.id:", socket.id);
+        console.log("connection. socket.id:", socket.id);
+        // console.log('riderList for Asbury Park upon connection', RiderService.getRiderList('Asbury Park').map(rider
+        // => `${rider.fname} ${rider.lname}`));
 
-      // Add admins to the room admins.
-      socket.on('admin', token => {
-        console.log("io.on('admins')");
-        User.findByToken(token).then(user => {
-          console.log(`About to check if ${user.fname} ${user.lname} admin. Admin: ${user.admin}.`);
-          if ( user.admin ) socket.join('admins');
-        }).catch(err => {
-          console.log("err:", err); // Todo: Handle error. Someone is pretending to be an admin.
-        });
-      });
-
-      socket.emit('availableRides', RideService.getRides());
-
-      socket.on('joinRide', (rider, callback) => {
-        // Todo: Ideally, I should probably check the validity of the token here.
-        console.log('joinRide. ride:', rider.ride);
-        socket.join(rider.ride);
-        RiderService.addRider(rider);
-
-        // Send ride leaders' (and only ride leaders') phone numbers to all riders.
-        if ( rider.leader ) {
-          socket.in(rider.ride).broadcast.emit('newRider', _.omit(rider, 'email', 'emergencyName', 'emergencyPhone'));
-        } else {
-          io.in(rider.ride).broadcast.emit('newRider', _.omit(rider, 'email', 'phone', 'emergencyName', 'emergencyPhone'));
-        }
-
-        // Send full information to ride leaders.
-        let rideLeaders = RiderService.getRideLeaders(rider.ride);
-        rideLeaders.forEach(leader => {
-          io.to(leader.socketId).emit('newRider', rider);
+        // Add admins to the room admins.
+        socket.on('admin', token => {
+          console.log("io.on('admins')");
+          User.findByToken(token).then(user => {
+            // console.log(`About to check if ${user.fname} ${user.lname} admin. Admin: ${user.admin}.`);
+            if ( user.admin ) socket.join('admins');
+          }).catch(err => {
+            console.log("err:", err); // Todo: Handle error. Someone is pretending to be an admin.
+          });
         });
 
-        callback();
-      });
+        socket.on('giveMeAvailableRides', () => {
+          console.log("socket.on('giveMeAvailableRides')");
+          socket.emit('availableRides', RideService.getRides());
+        });
 
-      socket.on('leaveRide', rider => {
-        // Todo: Ideally, I should probably check the validity of the token here.
-        rider = RiderService.getRider(socket.id);
-        if (rider) {
-          console.log('leaveRide. ride:', rider.ride);
-          socket.leave(rider.ride);
-          RiderService.removeRider(rider);
-          io.in(rider.ride).emit('removeRider', _.pick(rider, '_id'));
-        }
-      });
+        socket.on('joinRide', (user, ride, callback) => {
+          console.log("socket.on('joinRide'). ride:", ride);
+          socket.join(ride);
 
+          let rider = RiderService.addRider(user, ride, socket.id);
 
-      socket.on('giveMeFullRiderList', rider => {
-        console.log("rider.token", rider.token);
-        User.findByToken(rider.token).then(user => {
-          if ( user.leader ) {
-            socket.emit('fullRiderList', RiderService.getFullRidersList(rider.ride));
+          // Emits public info about the joinedRider to everybody on the ride.
+          if ( rider.leader ) {
+            socket.in(rider.ride).broadcast.emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'phone'))
           } else {
-            socket.emit('fullRiderList', RiderService.getFullRidersListPublicInfo(rider.ride));
+            socket.in(rider.ride).broadcast.emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader'))
           }
-        }).catch(err => {
-          console.log("on giveMeFullRiderList. catch: No user was found! err:", err);  // Todo: Handle error.
+
+          // Emits all info about the joinedRider to ride leaders on the ride.
+          // Todo: What happens if this arrives before the message emitted above?
+          let rideLeaders = RiderService.getRideLeaders(rider.ride);
+          rideLeaders.forEach(leader => {
+            io.to(leader.socketId).emit('joinedRider', rider);
+          });
+
+          callback();
         });
 
-      });
+        socket.on('giveMeRiderList', ride => {
+          console.log("socket.on('giveMeRiderList'). ride:", ride);
+          let requestingRider = RiderService.getRider(socket.id);
+          if ( requestingRider ) console.log("requestingRider:", requestingRider.fname, requestingRider.lname, "Leader:", requestingRider.leader);
+          if ( !requestingRider ) console.log("The requesting rider was not found in riderList");
+          if ( requestingRider ) {
+            if ( requestingRider.leader || requestingRider.admin ) {
+              socket.emit('riderList', RiderService.getRiderList(ride));
+            } else {
+              socket.emit('riderList', RiderService.getPublicRiderList(ride));
+            }
+          }
+        });
 
-      socket.on('updateRiderPosition', rider => {
-        // Todo: Ideally, I should probably check the validity of the token here.
-        let updatedRider = RiderService.updateRider(rider);
-        io.in(updatedRider.ride).emit('updateRiderPosition', _.pick(updatedRider, '_id', 'lat', 'lng'));
-      });
+        socket.on('leaveRide', () => {
+          let rider = RiderService.getRider(socket.id);
+          if ( rider ) {  // Safety precaution.
+            console.log("socket.on('leaveRide'). ride:", rider.ride);
+            socket.leave(rider.ride);
+            RiderService.removeRider(rider);
+            io.in(rider.ride).emit('removedRider', _.pick(rider, '_id')._id.toString()); // _id is a mongoDB ObjectId.
+          }
+        });
+
+        socket.on('updateUserPosition', position => {
+          // console.log("socket.on('updateRiderPosition'). position:", position);
+          // console.log("socket.id:", socket.id);
+          let rider = RiderService.getRider(socket.id);
+          console.log("socket.on('updateRiderPosition'). rider:", rider);
+          RiderService.updateRiderPosition(rider);
+
+          socket.in(rider.ride).emit('updatedRiderPosition', _.pick(rider, '_id', 'position'));
+        });
 
 
-      socket.on('removeRider', rider => {
-        rider = RiderService.removeRider(rider);
+        // socket.on('removeRider', () => {
+        //   let rider = RiderService.getRider(socket.id);
+        //   RiderService.removeRider(rider);
+        //
+        //   io.to(rider.ride).emit('removedRider', _.pick(rider, '_id'));
+        //   socket.leave(rider.ride);
+        // });
 
-        io.to(rider.ride).emit('removeRider', _.pick(rider, '_id'));
-        socket.leave(rider.ride);
-      });
+        // // For debugging.
+        // socket.on('clearServerOfRiders', ride => {
+        //   RiderService.removeAllRiders(ride);
+        //   io.in(ride).emit('fullRiderList', []);
+        // });
 
-      // For debugging.
-      socket.on('clearServerOfRiders', ride => {
-        RiderService.removeAllRiders(ride);
-        io.in(ride).emit('fullRiderList', []);
-      });
+        socket.on('debugging', message => {
+          console.log("debugging", message);
+          io.in('admins').emit('debugging', message);
+        });
 
-      socket.on('debugging', message => {
-        console.log("debugging", message);
-        io.in('admins').emit('debugging', message);
-      });
+        socket.on('disconnect', () => {
+          console.log('disconnect. socket.id:', socket.id);
+          let rider = RiderService.getRider(socket.id);
 
-      socket.on('disconnect', () => {
-        console.log('disconnect. socket.id:', socket.id);
-        let rider = RiderService.getRider(socket.id);
-        if (rider) {
-          rider = RiderService.markAsDisconnected(rider);
-          io.in(rider.ride).emit('disconnectedRider', _.pick(rider, '_id', 'disconnected', 'disconnectedTime'));
-          socket.leave(rider.ride);
-        }
-      });
+          if ( rider ) {
+            RiderService.markAsDisconnected(rider);
+            socket.in(rider.ride).emit('disconnectedRider', _.pick(rider, '_id', 'disconnected'));
+            socket.leave(rider.ride);
+          }
 
-    });
+
+        });
+
+      }
+    )
+    ;
 
   }
 }

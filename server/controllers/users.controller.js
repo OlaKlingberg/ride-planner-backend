@@ -23,7 +23,7 @@ router.get('/', authenticate, getAllUsers);
 router.post('/', registerNewUser);
 router.post('/login', login);
 router.get('/authenticate-by-token', authenticate, authenticateByToken);
-router.delete('/logout', authenticate, logout);
+router.get('/logout', authenticate, logout);
 router.get('/riders', authenticate, getAllRiders);  // Do I need this at all?
 
 
@@ -51,12 +51,8 @@ function registerNewUser(req, res) {
 }
 
 function login(req, res) {
-  console.log("users.controller.login");
-  console.log(`email:${req.body.email}.`);
-  console.log(`password:${req.body.password}.`);
   User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
-    // console.log("user:", user);
       return user.generateAuthToken().then(token => {
         res.set({
           'Access-Control-Allow-Origin': '*',

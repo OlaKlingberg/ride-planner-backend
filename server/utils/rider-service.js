@@ -1,70 +1,75 @@
 const _ = require('lodash');
 
-let riders = [];
+let riderList = [];
 
 const RiderService = {
-  addRider: rider => {
-    riders.push(rider);
+  addRider: (user, ride, socketId) => {
+    user.ride = ride;
+    user.socketId = socketId;
+
+    // Todo: Make this unnecessary. I believe it is now
+    if ( !user.position ) console.log("-------------------------- This should never happen! --------------------------");
+
+    let idx = _.findIndex(riderList, ['_id', user._id]); // May or may not exist.
+
+    if ( idx >= 0 && riderList[idx].disconnected && (Date.now() - riderList[idx].disconnected < 5000) ) {
+      riderList[idx].socketId = user.socketId;
+      riderList[idx].disconnected = null;
+      riderList[idx].position.timestamp = user.position.timestamp;
+      riderList[idx].position.coords.accuracy = user.position.coords.accuracy;
+      riderList[idx].position.coords.latitude = user.position.coords.latitude;
+      riderList[idx].position.coords.longitude = user.position.coords.longitude;
+    } else {
+      if (riderList[idx]) console.log("Disconnected:", riderList[idx].disconnected);
+      riderList = riderList.filter(rider => rider._id !== user._id);
+      riderList.push(user);
+    }
+
+    return user;
   },
 
   removeRider: riderToRemove => {
-    rider = riders.filter(rider => rider._id === riderToRemove._id);
-    riders = riders.filter(rider => rider._id !== riderToRemove._id);
-
-    return rider;
+    riderList = riderList.filter(rider => rider._id !== riderToRemove._id);
   },
 
-  updateRider: riderToUpdate => {
-    let index = _.findIndex(riders, rider => rider._id === riderToUpdate._id);
-    riders[index].lat = riderToUpdate.lat;
-    riders[index].lng = riderToUpdate.lng;
+  updateRiderPosition: riderToUpdate => {
+    let idx = _.findIndex(riderList, rider => rider._id === riderToUpdate._id);
 
-    return riders[index];
-  },
-
-  addOrUpdateRider: riderToAddOrRemove => {
-    riders = riders.filter(rider => rider._id !== riderToAddOrRemove._id);
-    riders.push(riderToAddOrRemove);
-  },
-
-  removeAllRiders: ride => {
-    riders = riders.filter(rider => rider.ride !== ride);
+    riderList[idx].position.timestamp = riderToUpdate.position.timestamp;
+    riderList[idx].position.coords.accuracy = riderToUpdate.position.coords.accuracy;
+    riderList[idx].position.coords.latitude = riderToUpdate.position.coords.latitude;
+    riderList[idx].position.coords.longitude = riderToUpdate.position.coords.longitude;
   },
 
   getRider: socketId => {
-    return riders.find(rider => rider.socketId === socketId);
+    // console.log("riderList:", riderList);
+    return riderList.find(rider => rider.socketId === socketId);
   },
 
   markAsDisconnected: disRider => {
-    console.log('markAsDisconnected');
-    let index = _.findIndex(riders, rider => rider._id === disRider._id);
-    if ( index >= 0 ) {
-      riders[index].disconnected = true;
-      riders[index].disconnectTime = Date.now();
+    let idx = _.findIndex(riderList, rider => rider._id === disRider._id);
+    if ( idx >= 0 ) {
+      riderList[idx].disconnected = Date.now();
     }
-
-    return riders[index];
   },
 
-  getFullRidersList: (ride) => {
-    return riders.filter(rider => rider.ride === ride);
+  getRiderList: (ride) => {
+    return riderList.filter(rider => rider.ride === ride);
   },
 
-  getFullRidersListPublicInfo: (ride) => {
-    let onRide = riders.filter(rider => rider.ride === ride);
-
-    return onRide.map(rider => {
+  getPublicRiderList: (ride) => {
+    let list = riderList.filter(rider => rider.ride === ride);
+    return list.map(rider => {
       if ( rider.leader ) {
-        return _.omit(rider, 'email', 'emergencyName', 'emergencyPhone');
+        return _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'phone')
       } else {
-        return _.omit(rider, 'email', 'phone', 'emergencyName', 'emergencyPhone');
+        return _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader')
       }
     });
   },
 
   getRideLeaders(ride) {
-    let onRide = riders.filter(rider => rider.ride === ride);
-    return onRide.filter(rider => rider.leader);
+    return riderList.filter(rider => (rider.ride === ride) && rider.leader);
   }
 
 };
