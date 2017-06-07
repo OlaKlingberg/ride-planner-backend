@@ -8,7 +8,7 @@ const RiderService = {
     user.socketId = socketId;
 
     // Todo: Make this unnecessary. I believe it is now
-    if ( !user.position ) console.log("-------------------------- This should never happen! --------------------------");
+    if ( !user.position.coords.latitude ) console.log("-------------------------- This should never happen! --------------------------");
 
     let idx = _.findIndex(riderList, ['_id', user._id]); // May or may not exist.
 
@@ -20,7 +20,7 @@ const RiderService = {
       riderList[idx].position.coords.latitude = user.position.coords.latitude;
       riderList[idx].position.coords.longitude = user.position.coords.longitude;
     } else {
-      if (riderList[idx]) console.log("Disconnected:", riderList[idx].disconnected);
+      if ( riderList[idx] ) console.log("Disconnected:", riderList[idx].disconnected);
       riderList = riderList.filter(rider => rider._id !== user._id);
       riderList.push(user);
     }
@@ -32,13 +32,19 @@ const RiderService = {
     riderList = riderList.filter(rider => rider._id !== riderToRemove._id);
   },
 
-  updateRiderPosition: riderToUpdate => {
-    let idx = _.findIndex(riderList, rider => rider._id === riderToUpdate._id);
+  updateRiderPosition: (socketId, position) => {
+    let idx = _.findIndex(riderList, rider => rider.socketId === socketId);
 
-    riderList[idx].position.timestamp = riderToUpdate.position.timestamp;
-    riderList[idx].position.coords.accuracy = riderToUpdate.position.coords.accuracy;
-    riderList[idx].position.coords.latitude = riderToUpdate.position.coords.latitude;
-    riderList[idx].position.coords.longitude = riderToUpdate.position.coords.longitude;
+    if ( idx >= 0 ) {
+      riderList[idx].position.timestamp = position.timestamp;
+      riderList[idx].position.coords.accuracy = position.coords.accuracy;
+      riderList[idx].position.coords.latitude = position.coords.latitude;
+      riderList[idx].position.coords.longitude = position.coords.longitude;
+
+      return riderList[idx];
+    }
+
+    return null;
   },
 
   getRider: socketId => {
