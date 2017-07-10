@@ -2,6 +2,7 @@ const { ObjectID } = require('mongodb');
 const jwt = require('jsonwebtoken');
 
 const { User } = require('./../../models/user');
+const { Cuesheet } = require('./../../models/cuesheet');
 
 const userOneId = new ObjectID();
 const userTwoId = new ObjectID();
@@ -26,7 +27,6 @@ const users = [{
     token: jwt.sign({_id: userTwoId, access: 'auth'}, process.env.JWT_SECRET)
   }]
 }];
-
 
 const populateUsers = (done) => {
   User.remove({}).then(() => {

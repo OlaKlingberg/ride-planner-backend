@@ -24,14 +24,13 @@ router.post('/', registerNewUser);
 router.post('/login', login);
 router.get('/authenticate-by-token', authenticate, authenticateByToken);
 router.get('/logout', authenticate, logout);
-router.get('/riders', authenticate, getAllRiders);  // Do I need this at all?
 
 
 // Route handlers
 function getAllUsers(req, res) {
   User.find({})
     .then(users => {
-      res.send(users);
+      res.send({users});
     }, (e) => {
       res.status(400).send(e);
     });
@@ -71,6 +70,8 @@ function authenticateByToken(req, res) {
 }
 
 function logout(req, res) {
+  // console.log("UsersController.logout");
+  // console.log(req.token);
   req.user.removeToken(req.token).then(() => {
     res.status(200).send();
   }, () => {
@@ -78,8 +79,6 @@ function logout(req, res) {
   });
 }
 
-function getAllRiders(req, res) {
-  res.send(RiderService.getRiders('Asbury Park')); // Todo: Replace with variable -- if I need this function at all.
-}
+
 
 module.exports = router;

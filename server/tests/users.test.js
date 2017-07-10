@@ -1,10 +1,9 @@
 const expect = require('expect');
 const request = require('supertest');
-const { ObjectID } = require('mongodb');
 
 const { app } = require('./../server');
 const { User } = require('./../models/user');
-const { users, populateUsers } = require('./seed/seed');
+const { users, populateUsers } = require('./seed/users.seed');
 
 beforeEach(populateUsers);
 
@@ -14,9 +13,9 @@ describe('GET /users', () => {
       .get('/users')
       .set('x-auth', users[0].tokens[0].token)
       .expect(200)
-      .expect((res) => {
+      .expect(res => {
         expect(res.body.users.length).toBe(2);
-        expect(res.body.users[0].email).toBe('seed1@olaklingberg.com');
+        expect(res.body.users[0].email).toMatch(/seed(1|2)@olaklingberg.com/);
       })
       .end(done);
   });
@@ -29,7 +28,6 @@ describe('GET /users', () => {
   });
 });
 
-
 describe('POST /users', () => {
   it('should create a user', (done) => {
     const fname = 'Tester1';
@@ -41,7 +39,7 @@ describe('POST /users', () => {
       .post('/users')
       .send({ fname, lname, email, password })
       .expect(200)
-      .expect((res) => {
+      .expect(res => {
         expect(res.body._id).toExist();
         expect(res.body.email).toBe(email);
       })
@@ -144,19 +142,21 @@ describe('GET /users/authenticate-by-token', () => {
 describe('DELETE /users/logout', () => {
   it('should remove auth token on logout', (done) => {
     request(app)
-      .delete('/users/logout')
+      .get('/users/logout')
       .set('x-auth', users[0].tokens[0].token)
       .expect(200)
       .end((err, res) => {
-        if (err) done(err);
+      // console.log("err:", err);
+        if ( err ) done(err);
 
-        User.findById(users[0]._id).then((user) => {
+        User.findById(users[0]._id).then(user => {
           expect(user.tokens.length).toBe(0);
           done();
         }).catch((e) => done(e));
       });
   });
 });
+
 
 
 

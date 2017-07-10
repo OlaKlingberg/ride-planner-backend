@@ -8,7 +8,7 @@ class SocketServer {
   startSocketServer(io) {
 
     io.on('connection', (socket) => {
-        console.log("connection. socket.id:", socket.id, new Date().toString());
+        // console.log("connection. socket.id:", socket.id, new Date().toString());
 
         socket.emit('socketConnection');
 
@@ -95,7 +95,7 @@ class SocketServer {
         });
 
         socket.on('disconnect', () => {
-          console.log('disconnect. socket.id:', socket.id, new Date().toString());
+          // console.log('disconnect. socket.id:', socket.id, new Date().toString());
           let rider = RiderService.getRider(socket.id);
 
           if ( rider ) {

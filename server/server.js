@@ -25,6 +25,7 @@ app.use(cors());
 
 // Api routes
 app.use('/users', require('./controllers/users.controller'));
+app.use('/cuesheets', require('./controllers/cuesheets.controller'));
 app.get('/', (req, res) => {
   res.send("RidePlanner API is up and running!");
 });
