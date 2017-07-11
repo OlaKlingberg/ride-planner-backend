@@ -64,13 +64,6 @@ function getCuesheet(req, res) {
     return res.status(404).send();
   }
 
-  // Cuesheet.findOne({ _id })
-  //   .then(cuesheet => {
-  //     // console.log(cuesheet);
-  //     if ( !cuesheet ) return res.status(404).send();
-  //     res.send({ cuesheet });
-  //   }).catch(e => res.status(400).send());
-
   Cuesheet.findOne({ _id })
     .populate('_creator', ['fname', 'lname'])
     .populate('cues')
@@ -83,16 +76,17 @@ function getCuesheet(req, res) {
 function deleteCuesheet(req, res) {
   const _id = req.params._id;
 
-  if ( !ObjectID.isValid(_id) ) {
-    return res.status(404).send();
-  }
+  if ( !ObjectID.isValid(_id) ) res.status(404).send();
 
   Cuesheet.findOneAndRemove({ _id })
     .then(cuesheet => {
-      if ( !cuesheet ) {
-        return res.status(404).send();
-      }
-      res.send({ cuesheet });
+      if ( !cuesheet ) res.status(404).send();
+
+      // Delete the cues belonging to the cuesheet.
+      Cue.remove({ _id: { $in: cuesheet.cues } }, () => {
+        return res.send({ cuesheet });
+      });
+
     }).catch(e => {
     res.status(400).send();
   });
@@ -129,7 +123,9 @@ function createCue(req, res) {
       Cuesheet.findById(cuesheetId)
         .then(cuesheet => {
           if ( insertBeforeId ) {
-            let idx = _.findIndex(cuesheet.cues, _id => { return _id.toString() === insertBeforeId});
+            let idx = _.findIndex(cuesheet.cues, _id => {
+              return _id.toString() === insertBeforeId
+            });
             cuesheet.cues.splice(idx, 0, cue._id);
           } else {
             cuesheet.cues.push(cue._id);
@@ -174,8 +170,6 @@ function deleteCue(req, res) {
     });
 
   });
-
-
 }
 
 module.exports = router;
