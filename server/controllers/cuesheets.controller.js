@@ -22,9 +22,10 @@ router.use(bodyParser.json());
 router.get('/', authenticate, getAllCuesheets);
 router.post('/', authenticate, createCuesheet);
 router.get('/:_id', authenticate, getCuesheet);
-router.delete('/:_id', authenticate, deleteCuesheet);
 router.patch('/:_id', authenticate, updateCuesheet);
+router.delete('/:_id', authenticate, deleteCuesheet);
 router.post('/cues', authenticate, createCue);
+router.patch('/cues/:_id', authenticate, updateCue);
 router.delete('/:cuesheetId/cues/:cueId', authenticate, deleteCue);
 
 // Route handlers
@@ -68,9 +69,28 @@ function getCuesheet(req, res) {
     .populate('_creator', ['fname', 'lname'])
     .populate('cues')
     .exec((err, cuesheet) => {
-      if ( err || !cuesheet ) res.status(404).send(err);
-      res.send({ cuesheet });
+      if ( err || !cuesheet ) {
+        res.status(404).send(err);
+      } else {
+        res.send({ cuesheet });
+      }
     })
+}
+
+function updateCuesheet(req, res) {
+  const _id = req.params._id;
+  const body = _.pick(req.body, ['name', 'description']);
+
+  if ( !ObjectID.isValid(_id) ) return res.status(400).send();
+
+  Cuesheet.findOneAndUpdate({ _id }, { $set: body }, { new: true })
+    .then(cuesheet => {
+      if ( !cuesheet ) return res.status(404).send();
+
+      res.send({ cuesheet });
+    }).catch(e => {
+    res.status(400).send();
+  });
 }
 
 function deleteCuesheet(req, res) {
@@ -87,24 +107,6 @@ function deleteCuesheet(req, res) {
         return res.send({ cuesheet });
       });
 
-    }).catch(e => {
-    res.status(400).send();
-  });
-}
-
-// When the user clicks "Save all changes".
-// Todo: Should also loop through all cues and update them.
-function updateCuesheet(req, res) {
-  const _id = req.params._id;
-  const body = _.pick(req.body, ['name', 'description']);
-
-  if ( !ObjectID.isValid(_id) ) return res.status(400).send();
-
-  Cuesheet.findOneAndUpdate({ _id }, { $set: body }, { new: true })
-    .then(cuesheet => {
-      if ( !cuesheet ) return res.status(404).send();
-
-      res.send({ cuesheet });
     }).catch(e => {
     res.status(400).send();
   });
@@ -139,14 +141,27 @@ function createCue(req, res) {
     });
 }
 
+function updateCue(req, res) {
+  const _id = req.params._id;
+  const cue = _.pick(req.body, ['distance', 'turn', 'description']);
+
+  if ( !ObjectID.isValid(_id) ) return res.status(404).send();
+
+  Cue.findOneAndUpdate({ _id }, { $set: cue }, { new: true }).then(cue => {
+    if ( !cue ) {
+      return res.status(404).send();
+    }
+
+    return res.send({ cue });
+  }).catch(e => res.status(400).send());
+}
+
 // Todo: Is there any way of getting rid of this multi-level nesting?
 function deleteCue(req, res) {
   const cuesheetId = req.params.cuesheetId;
   const cueId = req.params.cueId;
 
-  if ( !ObjectID.isValid(cuesheetId) || !ObjectID.isValid(cueId) ) {
-    return res.status(404).send();
-  }
+  if ( !ObjectID.isValid(cuesheetId) || !ObjectID.isValid(cueId) ) return res.status(404).send();
 
   Cuesheet.findById(cuesheetId, (err, cuesheet) => {
     if ( !cuesheet ) return res.status(404).send();
