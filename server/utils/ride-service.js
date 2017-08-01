@@ -1,4 +1,6 @@
-const rides = ['Rockland Lakes', 'Asbury Park'];
+// const rides = ['Rockland Lakes', 'Asbury Park'];
+
+const { Ride } = require('../models/ride');
 
 const RideService = {
 
@@ -11,7 +13,17 @@ const RideService = {
 
   },
 
-  getRides: () => rides
+  // getRides: () => rides
+
+  getRides: () => {
+    Ride.find({})
+      .then(rides => {
+        console.log(rides);
+        return rides;
+      }), (err) => {
+      return err;
+    }
+  }
 
 
 };

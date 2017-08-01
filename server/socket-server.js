@@ -1,6 +1,7 @@
 const _ = require("underscore");
 
 const { User } = require('./models/user');
+const { Ride } = require('./models/ride');
 const { RideService } = require('./utils/ride-service');
 const { RiderService } = require('./utils/rider-service');
 
@@ -17,7 +18,11 @@ class SocketServer {
 
         socket.on('giveMeAvailableRides', () => {
           console.log("socket.on('giveMeAvailableRides')");
-          socket.emit('availableRides', RideService.getRides());
+
+          Ride.getRides().then(rides => {
+              console.log("rides:", rides);
+              socket.emit('availableRides', rides);
+            });
         });
 
         socket.on('joinRide', (user, ride, token, callback) => {
@@ -26,6 +31,9 @@ class SocketServer {
           let rider = RiderService.addRider(user, ride, socket.id);
 
           socket.join(ride);
+
+
+
 
           User.findByToken(token).then(user => {
             if ( user.admin ) {
