@@ -18,7 +18,6 @@ const RideService = {
   getRides: () => {
     Ride.find({})
       .then(rides => {
-        console.log(rides);
         return rides;
       }), (err) => {
       return err;

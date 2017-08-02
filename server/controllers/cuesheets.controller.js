@@ -110,8 +110,8 @@ function deleteCuesheet(req, res) {
         return res.send({ cuesheet });
       });
 
-    }).catch(e => {
-    res.status(400).send();
+    }).catch(err => {
+    res.status(400).send(err);
   });
 }
 

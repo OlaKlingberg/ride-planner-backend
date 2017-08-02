@@ -5,16 +5,15 @@ const { ObjectID } = require('mongodb');
 
 const { app } = require('./../server');
 
-// const { Cuesheet } = require('./../models/cuesheet');
-// const { Cue } = require('./../models/cue');
-
 const { Ride } = require('./../models/ride');
 
 const { users } = require('./seed/users.seed');
-// const { cuesheets, cues, populateCuesheets } = require('./seed/cuesheets.seed');
+const { rides, populateRides } = require('./seed/rides.seed');
+
+beforeEach(populateRides);
 
 describe('POST /rides', () => {
-  const name = 'MyRide1';
+  const name = 'MyNewRide';
   const description = 'This is a ride created by the test suite.';
   const _creator = users[0]._id;
 
@@ -60,11 +59,63 @@ describe('POST /rides', () => {
       .expect(400)
       .end(done);
   });
+});
 
+describe('DELETE /rides/:_id', () => {
+  it('should remove a ride if the user has a valid token', done => {
+    const name = rides[0].name;
 
+    request(app)
+      .delete(`/rides/${name}`)
+      .set('x-auth', users[1].tokens[0].token)
+      .expect(200)
+      .expect(res => {
+        expect(res.body.ride.name).toBe(name);
+      })
+      .end((err, res) => {
+        if (err ) {
+          return done(err); // Todo: Does this work the same as putting return on the next line?
+          // return;
+        }
 
+        Ride.findOne({ name })
+          .then(ride => {
+            expect(ride).toNotExist();
+            done();
+          })
+          .catch(err => done(err));
+      })
+  });
+
+  it('should respond with a 401 if the user does not have a valid token', done => {
+    const rideId = rides[0]._id.toString();
+
+    request(app)
+      .delete(`/rides/${rideId}`)
+      .set('x-auth', users[1].tokens[0].token + 'X')
+      .expect(401)
+      .end(done)
+  });
+
+  it('should return 404 if ride not found', done => {
+    request(app)
+      .delete(`/rides/${new ObjectID().toString()}`)
+      .set('x-auth', users[0].tokens[0].token)
+      .expect(404)
+      .end(done);
+  });
+
+  it('should return 404 if objectID is invalid', done => {
+    request(app)
+      .delete('/rides/123')
+      .set('x-auth', users[0].tokens[0].token)
+      .expect(404)
+      .end(done);
+  });
 
 });
+
+
 
 
 

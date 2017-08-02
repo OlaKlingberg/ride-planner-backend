@@ -32,9 +32,6 @@ class SocketServer {
 
           socket.join(ride);
 
-
-
-
           User.findByToken(token).then(user => {
             if ( user.admin ) {
               socket.join('admins');

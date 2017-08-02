@@ -1,4 +1,5 @@
 require('../config/config');
+const { ObjectID } = require('mongodb');
 
 const _ = require('lodash');
 const express = require('express');
@@ -21,29 +22,33 @@ router.use(bodyParser.json());
 
 // Routes
 router.post('/', authenticate, createRide);
+router.delete('/:_id', authenticate, deleteRide);
 
 // Route handlers
 function createRide(req, res) {
-  // res.status(200).send();
-
-  // console.log("req:", req);
-  console.log("req.body:", req.body);
-
   const body = _.pick(req.body, ['name', 'description', '_creator']);
-
-  console.log(body);
-
   const ride = new Ride(body);
-
-  console.log(ride);
 
   ride.save()
     .then(() => {
-    res.send(ride)
+      res.send(ride)
     })
     .catch(e => {
       res.status(400).send(e);
     })
+}
+
+function deleteRide(req, res) {
+  const name = req.params._id;
+
+  Ride.findOneAndRemove({ name })
+    .then(ride => {
+      if ( !ride ) res.status(404).send();
+      return res.send({ ride });
+    }).catch(err => {
+    res.status(400).send(err);
+  })
+
 }
 
 module.exports = router;
