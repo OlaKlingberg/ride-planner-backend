@@ -155,7 +155,7 @@ function updateCue(req, res) {
       return res.status(404).send();
     }
 
-    return res.send({ cue });
+    return res.send(cue);
   }).catch(e => res.status(400).send());
 }
 
