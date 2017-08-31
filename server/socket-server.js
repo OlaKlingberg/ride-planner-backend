@@ -9,18 +9,15 @@ class SocketServer {
   startSocketServer(io) {
 
     io.on('connection', (socket) => {
-        // console.log("connection. socket.id:", socket.id, new Date().toString());
+        console.log("connection. socket.id:", socket.id, new Date().toString());
 
         socket.emit('socketConnection');
-
-        // console.log('riderList for Asbury Park upon connection', RiderService.getRiderList('Asbury Park').map(rider
-        // => `${rider.fname} ${rider.lname}`));
 
         socket.on('giveMeAvailableRides', () => {
           console.log("socket.on('giveMeAvailableRides')");
 
           Ride.getRides().then(rides => {
-              console.log("rides:", rides);
+              // console.log("rides:", rides);
               socket.emit('availableRides', rides);
             });
         });
@@ -65,10 +62,11 @@ class SocketServer {
           if ( requestingRider ) {
             console.log("requestingRider:", requestingRider.fname, requestingRider.lname, "Leader:", requestingRider.leader);
             if ( requestingRider.leader || requestingRider.admin ) {
-              console.log("About to emit riderList.", new Date().toString());
+              // console.log("About to emit riderList.", new Date().toString(), "riderList:", RiderService.getRiderList(ride));
               socket.emit('riderList', RiderService.getRiderList(ride));
             } else {
-              console.log("About to emit riderList.", new Date().toString());
+              // console.log("About to generate and emit riderList for ride:", ride);
+              // console.log("About to emit riderList.", new Date().toString(), RiderService.getRiderList(ride));
               socket.emit('riderList', RiderService.getPublicRiderList(ride));
             }
           }
@@ -88,7 +86,6 @@ class SocketServer {
           let rider = RiderService.updateRiderPosition(socket.id, position);
           if (rider) {
             setTimeout(() => {
-              // if (rider.fname === 'Ada') console.log('New lat for Ada:', rider.position.coords.latitude * 1000);
               io.in(rider.ride).emit('updatedRiderPosition', _.pick(rider, '_id', 'position'));
             }, 200);
           }

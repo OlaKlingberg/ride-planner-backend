@@ -7,9 +7,6 @@ const RiderService = {
     user.ride = ride;
     user.socketId = socketId;
 
-    // Todo: Make this unnecessary. I believe it is now
-    if ( !user.position.coords.latitude ) console.log("-------------------------- This should never happen! --------------------------");
-
     let idx = _.findIndex(riderList, ['_id', user._id]); // May or may not exist.
 
     if ( idx >= 0 && riderList[idx].disconnected && (Date.now() - riderList[idx].disconnected < 5000) ) {
@@ -64,7 +61,10 @@ const RiderService = {
   },
 
   getPublicRiderList: (ride) => {
+    // console.log("About to generate riderList for ride:", ride);
+    // console.log("Unfiltered riderList:", riderList);
     let list = riderList.filter(rider => rider.ride === ride);
+    // console.log("Filtered list:", list);
     return list.map(rider => {
       if ( rider.leader ) {
         return _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'phone')
