@@ -9,8 +9,9 @@ const authenticate = (req, res, next) => {
     }
     req.user = user;
     req.token = token;
+    // console.log("About to call next()");
     next();
-  }).catch((e) => {
+  }).catch(e => {
     res.status(401).send();
   });
 };

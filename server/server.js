@@ -26,6 +26,7 @@ app.use(cors());
 // Api routes
 app.use('/users', require('./controllers/users.controller'));
 app.use('/cuesheets', require('./controllers/cuesheets.controller'));
+// app.use('/riders', require('./controllers/riders.controller'));
 app.use('/rides', require('./controllers/rides.controller'));
 
 app.get('/', (req, res) => {

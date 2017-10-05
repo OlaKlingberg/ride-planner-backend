@@ -9,6 +9,8 @@ const { authenticate } = require("../middleware/authenticate");
 const { mongoose } = require('../db/mongoose'); // So that mongoose.Promise is set to global.Promise.
 const { User } = require('../models/user');
 
+const faker = require('faker');
+
 const router = express.Router();
 
 const { RiderService } = require('../utils/rider-service');
@@ -24,14 +26,17 @@ router.post('/', registerNewUser);
 router.post('/login', login);
 router.get('/authenticate-by-token', authenticate, authenticateByToken);
 router.get('/logout', authenticate, logout);
+router.get('/add-twenty-members', authenticate, addTwentyMembers);
 
 
 // Route handlers
 function getAllUsers(req, res) {
+  // Todo: Protect: Only admins (and ride leaders?) should be able to call this.
   User.find({})
     .then(users => {
       res.send({users});
-    }, (e) => {
+    })
+    .catch((e) => {
       res.status(400).send(e);
     });
 }
@@ -66,6 +71,7 @@ function login(req, res) {
 }
 
 function authenticateByToken(req, res) {
+  // console.log("authenticateByToken");
   res.status(200).send(req.user);
 }
 
@@ -79,6 +85,31 @@ function logout(req, res) {
   });
 }
 
+function addTwentyMembers(req, res) {
+  for (let i = 0; i < 20; i++) {
+    const fname = faker.name.firstName();
+    const lname = faker.name.lastName();
+    const user = new User({
+      dummy: true,
+      fname,
+      lname,
+      phone: faker.phone.phoneNumberFormat(),
+      email: `${fname.toLowerCase()}.${lname.toLowerCase()}@example.com`,
+      password: 'hemligt', // Todo: Should I use something random here, so you can't log into a dummy rider's account?
+      emergencyName: faker.name.firstName(),
+      emergencyPhone: faker.phone.phoneNumberFormat(),
+      leader: !(Math.random() < .9)
+    });
+
+    user.save()
+      .then(() => {
+        res.send();
+      })
+      .catch(e => {
+        res.status(400).send(e)
+      });
+  }
+}
 
 
 module.exports = router;

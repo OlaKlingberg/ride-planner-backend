@@ -50,6 +50,10 @@ let UserSchema = new mongoose.Schema({
       type: Boolean,
       require: false
     },
+    dummy: {
+      type: Boolean,
+      require: false
+    },
     leader: {
       type: Boolean,
       require: false
@@ -137,6 +141,16 @@ UserSchema.statics.findByCredentials = function (email, password) {
       });
     });
   })
+};
+
+UserSchema.statics.findNextTenDummyUsers = function (skipNumber) {
+  const User = this;
+
+  return User.find({
+    dummy: true
+  })
+    .skip(skipNumber)
+    .limit(10);
 };
 
 UserSchema.pre('save', function (next) {
