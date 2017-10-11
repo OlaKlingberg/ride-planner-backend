@@ -95,7 +95,7 @@ function addTwentyMembers(req, res) {
       lname,
       phone: faker.phone.phoneNumberFormat(),
       email: `${fname.toLowerCase()}.${lname.toLowerCase()}@example.com`,
-      password: 'hemligt', // Todo: Should I use something random here, so you can't log into a dummy rider's account?
+      password: 'dummy-hemligt',
       emergencyName: faker.name.firstName(),
       emergencyPhone: faker.phone.phoneNumberFormat(),
       leader: !(Math.random() < .9)

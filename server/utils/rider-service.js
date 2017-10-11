@@ -16,7 +16,7 @@ const RiderService = {
     // Todo: I can no longer sort out the logic here. I don't know what I'm doing here.
     if ( idx >= 0 && riderList[idx].disconnected && (Date.now() - riderList[idx].disconnected < 5000) ) {
       // If the rider already exists, is disconnected, but has been disconnected for less than five seconds ...
-      // Todo: Figure out: Why do I do this, and only under those circumstances?
+      // Todo: Figure out: Why do I do exactly this, and only under those circumstances?
       riderList[idx].socketId = user.socketId;
       riderList[idx].disconnected = null;
       riderList[idx].position.timestamp = user.position.timestamp;
@@ -24,7 +24,6 @@ const RiderService = {
       riderList[idx].position.coords.latitude = user.position.coords.latitude;
       riderList[idx].position.coords.longitude = user.position.coords.longitude;
     } else {
-      // if ( riderList[idx] ) console.log("Disconnected:", riderList[idx].disconnected);
       // If the rider doesn't yet exist: add him. (Makes sense.)
       // If the rider is not disconnected, replace him (i.e. update him).
       // If the rider is disconnected and has been disconnected for more than five seconds. (Why?)
@@ -37,10 +36,7 @@ const RiderService = {
 
 
   getPublicRiderList: (ride) => {
-    // console.log("About to generate riderList for ride:", ride);
-    // console.log("Unfiltered riderList:", riderList);
     let list = riderList.filter(rider => rider.ride === ride);
-    // console.log("Filtered list:", list);
     return list.map(rider => {
       if ( rider.leader ) {
         return _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'phone')
@@ -51,7 +47,6 @@ const RiderService = {
   },
 
   getRider: socketId => {
-    // console.log("riderList:", riderList);
     return riderList.find(rider => rider.socketId === socketId);
   },
 
@@ -64,7 +59,6 @@ const RiderService = {
   },
 
   // getTenDummyUsers
-
   markAsDisconnected: disRider => {
     let idx = _.findIndex(riderList, rider => rider._id === disRider._id);
     if ( idx >= 0 ) {
@@ -77,9 +71,7 @@ const RiderService = {
   },
 
   updateRiderPosition: (socketId, position) => {
-    // console.log("position:", position);
     let idx = _.findIndex(riderList, rider => rider.socketId === socketId);
-    // console.log("riderList[idx]:", riderList[idx]);
 
     if ( idx >= 0 ) {
       riderList[idx].position.timestamp = position.timestamp;
