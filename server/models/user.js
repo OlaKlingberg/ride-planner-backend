@@ -1,3 +1,4 @@
+const faker = require('faker');
 const mongoose = require('mongoose');
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
@@ -107,6 +108,32 @@ UserSchema.methods.removeToken = function (token) {
   });
 };
 
+
+UserSchema.statics.addTwentyMembers = function () {
+  const User = this;
+  let users = [];
+
+  for ( let i = 0; i < 20; i++ ) {
+    const fname = faker.name.firstName();
+    const lname = faker.name.lastName();
+    const user = new User({
+      dummy: true,
+      fname,
+      lname,
+      phone: faker.phone.phoneNumberFormat(),
+      email: `${fname.toLowerCase()}.${lname.toLowerCase()}@example.com`,
+      password: 'dummy-hemligt',
+      emergencyName: faker.name.firstName(),
+      emergencyPhone: faker.phone.phoneNumberFormat(),
+      leader: !(Math.random() < .9)
+    });
+
+    users.push(user);
+  }
+
+  return User.create(users);
+};
+
 UserSchema.statics.findByToken = function (token) {
   const User = this;
   let decoded;
@@ -143,14 +170,14 @@ UserSchema.statics.findByCredentials = function (email, password) {
   })
 };
 
-UserSchema.statics.findNextTenDummyUsers = function (skipNumber) {
+UserSchema.statics.findNextFiveDummyUsers = function (skipNumber) {
   const User = this;
 
   return User.find({
     dummy: true
   })
     .skip(skipNumber)
-    .limit(10);
+    .limit(5);
 };
 
 UserSchema.pre('save', function (next) {

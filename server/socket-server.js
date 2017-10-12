@@ -6,8 +6,10 @@ const { RiderService } = require('./utils/rider-service');
 
 const https = require('https');
 
-let dummyRiders = [];
+let dummyRiders = []; // Todo: Move this to rider-service, for the sake of consistency?
+let latInc = null;
 let latSign = null;
+let lngInc = null;
 let lngSign = null;
 
 
@@ -19,18 +21,24 @@ class SocketServer {
 
       socket.emit('socketConnection');
 
-      // add10riders
-      socket.on('addTenRiders', (user, token) => {
+      // addFiveRiders
+      socket.on('addFiveRiders', (user, token) => {
         // Verify that there is a user with that token. // Todo: Is that enough verification?
         User.findByToken(token).then(() => {
 
           this.snapToRoad(user.position)
             .then(snappedPosition => {
-              // Call a RiderService function that returns ten dummy users from the db.
-              User.findNextTenDummyUsers(dummyRiders.length).then(dummies => {
+              // Call a RiderService function that returns five dummy users from the db.
+              User.findNextFiveDummyUsers(dummyRiders.length).then(dummies => {
+                // Todo: The way I handle the situation if there are too few users is kind of ugly (but it works).
+                if (dummies.length < 5) {
+                  User.addTwentyMembers()
+                    .then(() => {
+                      this.setDummyRiderCoords(socket, io, user.ride, snappedPosition, dummies);
+                    });
+                }
 
                 this.setDummyRiderCoords(socket, io, user.ride, snappedPosition, dummies);
-
               });
             });
 
@@ -59,7 +67,6 @@ class SocketServer {
       // giveMeRiderList
       socket.on('giveMeRiderList', ride => {
         this.onGiveMeRiderList(socket.id, socket, ride)
-
       });
 
 
@@ -93,8 +100,6 @@ class SocketServer {
 
         dummyRiders = [];
         latSign = null;
-        lngSign = null;
-
         socket.leave(ride);
       });
 
@@ -147,9 +152,9 @@ class SocketServer {
     let rider = RiderService.addRider(user, ride, socketId);
 
     if ( rider.leader ) {
-      io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'phone'))
+      io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'phone', 'dummy'))
     } else {
-      io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader'))
+      io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'dummy'))
     }
 
     // Emits all info about the joinedRider to ride leaders on the ride.
@@ -158,7 +163,7 @@ class SocketServer {
     rideLeaders.forEach(leader => {
       // JSON.stringify(rider.position.coords.latitude));
 
-      io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader'));
+      io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'dummy'));
       // io.in(rider.ride).emit('joinedRider', rider); // Todo: Why does this sent "latitude: undefined"?
     });
 
@@ -228,47 +233,29 @@ class SocketServer {
   }
 
   setDummyRiderCoords(socket, io, ride, snappedPosition, dummies) {
-    console.log("latSign:", latSign);
     if (latSign === null) {
       latSign = Math.sign(Math.random() - .5);
       lngSign = Math.sign(Math.random() - .5);
-      console.log("Set latSign to:", latSign, "and lngSign to:", lngSign);
+
+      latInc = Math.random() * .00012;
+      lngInc = Math.random() * .00012;
+      if (latInc < .00008 && lngInc < .00008) {
+        latInc += .00004;
+        lngInc += .00004;
+      }
+
+      latInc *= latSign;
+      lngInc *= lngSign;
+
+      console.log("latInc:", latInc);
+      console.log("lngInc:", lngInc);
     }
-
-    let latInc = Math.random() * .0001;
-    let lngInc = Math.random() * .0001;
-    if (latInc < .000025 && lngInc < .000025) {
-      latInc *= 4;
-      lngInc *= 4;
-    }
-
-    latInc *= latSign;
-    lngInc *= lngSign;
-
-    // let latInc = Math.random() * .0002 - .0001;
-    // // const latInc = Math.random() * .0008 - .0004;
-    // let lngInc = Math.random() * .0002 - .0001;
-    // // const lngInc = Math.random() * .0008 - .0004;
-    //
-    // if (Math.abs(latInc) < .000025 && Math.abs(lngInc) < .000025) {
-    //   console.log("latInc:", latInc);
-    //   console.log("lngInc:", lngInc);
-    //   latInc *= 4;
-    //   lngInc *= 4;
-    //   console.log("latInc and lngInc were too small, so I increased them to:", latInc, lngInc);
-    // }
-
-
-    console.log("latInc:", latInc);
-    console.log("lngInc:", lngInc);
-
-    if ( Math.abs(latInc) < .00005 && Math.abs(lngInc) < .00005 ) return this.setDummyRiderCoords(socket, io, ride, snappedPosition, dummies);
 
     // Loop through these ten dummy users and on each:
     dummies.forEach(dummy => {
       if ( dummy.timer ) clearInterval(dummy.timer);
 
-      const stepSize = Math.random() * .3 + 1;
+      const stepSize = Math.random() * .2 + 1;
       this.setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc * stepSize, lngInc * stepSize);
     });
   }
@@ -276,7 +263,7 @@ class SocketServer {
   setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc, lngInc) {
     let prevSnappedLat = null;
     let prevSnappedLng = null;
-    let incToFlip = 'latInc';
+    let flipLatInc = true;
     dummy.position = {
       coords: {
         latitude: snappedPosition.coords.latitude + Math.random() * .00006 - .00003,
@@ -285,9 +272,8 @@ class SocketServer {
     };
     dummy.fauxSocketId = dummyRiders.length;
 
-    // call onJoinedRide
-    this.onJoinedRide(dummy, ride, () => {
-    }, dummy.fauxSocketId, socket, io);
+    // call onJoinedRider
+    this.onJoinedRide(dummy, ride, () => { }, dummy.fauxSocketId, socket, io);
     // set an intervalTimer that calls onUpdateUserPosition
     dummy.timer = setInterval(() => {
       // Modify the position
@@ -296,23 +282,19 @@ class SocketServer {
 
       this.snapToRoad(dummy.position)
         .then(snappedPosition => {
-          if (!prevSnappedLat) {
-            prevSnappedLat = dummy.position.coords.latitude;
-            prevSnappedLng = dummy.position.coords.longitude;
-          } else {
-            // console.log("lat-diff:", prevSnappedLat - dummy.position.coords.latitude);
-            // console.log("lng-diff:", prevSnappedLng - dummy.position.coords.longitude);
-
-            if (Math.abs(prevSnappedLat - dummy.position.coords.latitude) < .00002 &&
-            Math.abs(prevSnappedLng - dummy.position.coords.longitude) < .00002) {
-              console.log("Before:", Math.sign(latInc), Math.sign(lngInc));
-              incToFlip === 'latInc' ? latInc *= -1 : lngInc *= -1;
-              incToFlip = incToFlip === 'latInc' ? 'lngInc' : 'latInc';
-              console.log("After:", Math.sign(latInc), Math.sign(lngInc));
-              console.log("-------------");
+          // console.log("diff:", prevSnappedLat - dummy.position.coords.latitude, prevSnappedLng - dummy.position.coords.longitude);
+            if (prevSnappedLat &&
+                Math.abs(prevSnappedLat - snappedPosition.coords.latitude) < .00007 &&
+                Math.abs(prevSnappedLng - snappedPosition.coords.longitude) < .00007) {
+              // console.log("Before:", Math.sign(latInc), Math.sign(lngInc));
+              flipLatInc ? latInc *= -1.1 : lngInc *= -1.1;
+              flipLatInc = !flipLatInc;
+              // console.log("After:", Math.sign(latInc), Math.sign(lngInc));
+              // console.log("-------------");
             }
-            prevSnappedLat = dummy.position.coords.latitude;
-          }
+
+            prevSnappedLat = snappedPosition.coords.latitude;
+            prevSnappedLng = snappedPosition.coords.longitude;
 
           this.onUpdateUserPosition(dummy.fauxSocketId, snappedPosition, io, true)
         })
@@ -320,7 +302,7 @@ class SocketServer {
             console.log("onUpdateUserPosition napToRoad.catch(e)", e); // Todo: Do I need any error handling here?
           }
         );
-    }, Math.random() * 3000 + 3000);
+    }, Math.random() * 1000 + 1500);
     dummyRiders.push(dummy);
   }
 

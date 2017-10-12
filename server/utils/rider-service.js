@@ -58,7 +58,6 @@ const RiderService = {
     return riderList.filter(rider => rider.ride === ride);
   },
 
-  // getTenDummyUsers
   markAsDisconnected: disRider => {
     let idx = _.findIndex(riderList, rider => rider._id === disRider._id);
     if ( idx >= 0 ) {

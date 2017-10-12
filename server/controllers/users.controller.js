@@ -9,11 +9,13 @@ const { authenticate } = require("../middleware/authenticate");
 const { mongoose } = require('../db/mongoose'); // So that mongoose.Promise is set to global.Promise.
 const { User } = require('../models/user');
 
-const faker = require('faker');
+// const faker = require('faker');
 
 const router = express.Router();
 
-const { RiderService } = require('../utils/rider-service');
+// const { RiderService } = require('../utils/rider-service');
+// const { UserService } = require('../utils/user-service');
+
 
 // Use JWT auth to secure the api
 // const authenticateWithJwt = expressJwt({ secret: process.env.JWT_SECRET });
@@ -86,30 +88,38 @@ function logout(req, res) {
 }
 
 function addTwentyMembers(req, res) {
-  for (let i = 0; i < 20; i++) {
-    const fname = faker.name.firstName();
-    const lname = faker.name.lastName();
-    const user = new User({
-      dummy: true,
-      fname,
-      lname,
-      phone: faker.phone.phoneNumberFormat(),
-      email: `${fname.toLowerCase()}.${lname.toLowerCase()}@example.com`,
-      password: 'dummy-hemligt',
-      emergencyName: faker.name.firstName(),
-      emergencyPhone: faker.phone.phoneNumberFormat(),
-      leader: !(Math.random() < .9)
+  User.addTwentyMembers()
+    .then(() => {
+      res.send();
+    })
+    .catch(e => {
+      res.status(400).send(e);
     });
 
-    user.save()
-      .then(() => {
-        res.send();
-      })
-      .catch(e => {
-        res.status(400).send(e)
-      });
-  }
-}
 
+  // for (let i = 0; i < 20; i++) {
+  //   const fname = faker.name.firstName();
+  //   const lname = faker.name.lastName();
+  //   const user = new User({
+  //     dummy: true,
+  //     fname,
+  //     lname,
+  //     phone: faker.phone.phoneNumberFormat(),
+  //     email: `${fname.toLowerCase()}.${lname.toLowerCase()}@example.com`,
+  //     password: 'dummy-hemligt',
+  //     emergencyName: faker.name.firstName(),
+  //     emergencyPhone: faker.phone.phoneNumberFormat(),
+  //     leader: !(Math.random() < .9)
+  //   });
+
+    // user.save()
+    //   .then(() => {
+    //     res.send();
+    //   })
+    //   .catch(e => {
+    //     res.status(400).send(e)
+    //   });
+  // }
+}
 
 module.exports = router;
