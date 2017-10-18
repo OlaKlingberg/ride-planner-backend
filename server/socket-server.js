@@ -3,6 +3,7 @@ const _ = require("lodash");
 const { User } = require('./models/user');
 const { Ride } = require('./models/ride');
 const { RiderService } = require('./utils/rider-service');
+const { UserService } = require('./utils/user-service');
 
 const https = require('https');
 
@@ -26,10 +27,15 @@ class SocketServer {
     io.on('connection', (socket) => {
       console.log("connection. socket.id:", socket.id, new Date().toString());
 
-      socket.emit('socketConnection');
+      socket.emit('socketConnection', socket.id);
 
-      // addFiveRiders
-      socket.on('addFiveRiders', (user, token) => {
+      // AddConnectedLoggedInUser
+      socket.on('AddConnectedLoggedInUser', email => {
+        UserService.addConnectedLoggedInUser(email, socket.id);
+      });
+
+      // addDummyRiders
+      socket.on('addDummyRiders', (user, token) => {
         // Verify that there is a user with that token. // Todo: Is that enough verification?
         User.findByToken(token).then(() => {
 
@@ -39,7 +45,7 @@ class SocketServer {
               User.findNextFiveDummyUsers(dummyRiders.length).then(dummies => {
                 // Todo: The way I handle the situation if there are too few users is kind of ugly (but it works).
                 if ( dummies.length < 5 ) {
-                  User.addTwentyMembers()
+                  User.addDummyMembers()
                     .then(() => {
                       this.setDummyRiderCoords(socket, io, user.ride, snappedPosition, dummies);
                     });
@@ -95,6 +101,10 @@ class SocketServer {
         this.onLeaveRide(socket.id, socket, io);
       });
 
+      // RemoveConnectedLoggedInUser
+      socket.on('RemoveConnectedLoggedInUser', email => {
+        UserService.removeConnectedLoggedInUser(socket.id);
+      });
 
       // removeDummyRiders
       socket.on('removeDummyRiders', (ride) => {
@@ -120,6 +130,9 @@ class SocketServer {
       // disconnect
       socket.on('disconnect', () => {
         console.log("disconnect:", socket.id);
+
+        UserService.removeConnectedLoggedInUser(socket.id);
+
         let rider = RiderService.getRider(socket.id);
 
         if ( rider ) {

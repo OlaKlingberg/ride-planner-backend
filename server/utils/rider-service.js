@@ -1,9 +1,6 @@
 const _ = require('lodash');
 
-const { User } = require('../models/user');
-
 let riderList = [];
-let dummyRiderList = [];
 
 const RiderService = {
   addRider: (user, ride, socketId) => {

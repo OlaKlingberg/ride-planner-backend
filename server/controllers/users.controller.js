@@ -8,6 +8,7 @@ const { authenticate } = require("../middleware/authenticate");
 
 const { mongoose } = require('../db/mongoose'); // So that mongoose.Promise is set to global.Promise.
 const { User } = require('../models/user');
+const { UserService } = require('../utils/user-service');
 
 // const faker = require('faker');
 
@@ -57,6 +58,11 @@ function registerNewUser(req, res) {
 }
 
 function login(req, res) {
+  // console.log("ConnectedLoggedInUsers:", UserService.connectedLoggedInUsers());
+  // console.log("req.body:", req.body);
+
+  if (UserService.isUserAlreadyLoggedInAndConnected(req.body.email)) return res.status(401).send("You are already logged in on another device. Log out or close the browser window on that device before logging in here.");
+
   User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
       return user.generateAuthToken().then(token => {

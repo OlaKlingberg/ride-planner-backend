@@ -78,9 +78,7 @@ let UserSchema = new mongoose.Schema({
   },
   {
     timestamps: true
-  }
-  )
-;
+  });
 
 // Overrides the Mongoose toJSON function, which seems to be applied behind the scenes when the response with the user
 // is sent in users.controller.js. Only the members specified here are included on the user object sent in the
@@ -97,8 +95,10 @@ UserSchema.methods.generateAuthToken = function () {
   const access = 'auth';
   const token = jwt.sign({ _id: user._id.toHexString() }, process.env.JWT_SECRET);
 
-  user.tokens.push({ access, token });  // Allows user to be logged in on several devices at once.
-  if ( user.tokens.length > 2 ) user.tokens.shift();  // You can only be logged in on two devices at a time.
+  // user.tokens.push({ access, token });  // Allows user to be logged in on several devices at once.
+  // if ( user.tokens.length > 2 ) user.tokens.shift();  // You can only be logged in on two devices at a time.
+
+  user.tokens = [{ access, token }]; // Todo: Is this okay, or will the copying by reference cause any problem?
 
   return user.save()
     .then(() => {

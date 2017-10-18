@@ -46,7 +46,6 @@ function getAllCuesheets(req, res) {
 }
 
 function createCuesheet(req, res) {
-
   console.log("req.body:", req.body);
 
   const body = _.pick(req.body, ['name', 'description', '_creator']);

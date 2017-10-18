@@ -1,19 +1,6 @@
-// const rides = ['Rockland Lakes', 'Asbury Park'];
-
 const { Ride } = require('../models/ride');
 
 const RideService = {
-
-
-  addRide: () => {
-
-  },
-
-  removeRide: () => {
-
-  },
-
-  // getRides: () => rides
 
   getRides: () => {
     Ride.find({})
@@ -23,7 +10,6 @@ const RideService = {
       return err;
     }
   }
-
 
 };
 
