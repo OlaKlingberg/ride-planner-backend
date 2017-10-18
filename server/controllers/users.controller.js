@@ -28,7 +28,7 @@ router.post('/', registerNewUser);
 router.post('/login', login);
 router.get('/authenticate-by-token', authenticate, authenticateByToken);
 router.get('/logout', authenticate, logout);
-router.get('/add-twenty-members', authenticate, addTwentyMembers);
+router.get('/add-dummy-members', authenticate, addDummyMembers);
 
 
 // Route handlers
@@ -87,39 +87,20 @@ function logout(req, res) {
   });
 }
 
-function addTwentyMembers(req, res) {
-  User.addTwentyMembers()
+function addDummyMembers(req, res) {
+  console.log("addDummyMembers. req.user.email:", req.user.email);
+  User.addDummyMembers(req.user.email)
     .then(() => {
+
+    setTimeout(() => {
+      User.removeDummyMembers();
+    }, 300000);
+
       res.send();
     })
     .catch(e => {
       res.status(400).send(e);
     });
-
-
-  // for (let i = 0; i < 20; i++) {
-  //   const fname = faker.name.firstName();
-  //   const lname = faker.name.lastName();
-  //   const user = new User({
-  //     dummy: true,
-  //     fname,
-  //     lname,
-  //     phone: faker.phone.phoneNumberFormat(),
-  //     email: `${fname.toLowerCase()}.${lname.toLowerCase()}@example.com`,
-  //     password: 'dummy-hemligt',
-  //     emergencyName: faker.name.firstName(),
-  //     emergencyPhone: faker.phone.phoneNumberFormat(),
-  //     leader: !(Math.random() < .9)
-  //   });
-
-    // user.save()
-    //   .then(() => {
-    //     res.send();
-    //   })
-    //   .catch(e => {
-    //     res.status(400).send(e)
-    //   });
-  // }
 }
 
 module.exports = router;

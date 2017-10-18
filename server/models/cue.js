@@ -33,7 +33,7 @@ let CueSchema = new mongoose.Schema({
   timestamps: true
 });
 
-const Cue = mongoose.model('Cue', CueSchema);
+const Cue = mongoose.model(`${process.env.DB_PREFIX}Cue`, CueSchema);
 
 module.exports = { Cue };
 

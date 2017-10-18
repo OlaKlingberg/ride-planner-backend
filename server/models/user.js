@@ -55,10 +55,16 @@ let UserSchema = new mongoose.Schema({
       type: Boolean,
       require: false
     },
-    leader: {
-      type: Boolean,
+    dummyCreator: {
+      type: String,
       require: false
     },
+    leader: {
+      type: Boolean,
+      require:
+        false
+    }
+    ,
     tokens: [{
       access: {
         type: String,
@@ -72,7 +78,9 @@ let UserSchema = new mongoose.Schema({
   },
   {
     timestamps: true
-  });
+  }
+  )
+;
 
 // Overrides the Mongoose toJSON function, which seems to be applied behind the scenes when the response with the user
 // is sent in users.controller.js. Only the members specified here are included on the user object sent in the
@@ -109,7 +117,7 @@ UserSchema.methods.removeToken = function (token) {
 };
 
 
-UserSchema.statics.addTwentyMembers = function () {
+UserSchema.statics.addDummyMembers = function (creatorEmail) {
   const User = this;
   let users = [];
 
@@ -117,6 +125,7 @@ UserSchema.statics.addTwentyMembers = function () {
     const fname = faker.name.firstName();
     const lname = faker.name.lastName();
     const user = new User({
+      dummyCreator: creatorEmail,
       dummy: true,
       fname,
       lname,
@@ -125,7 +134,7 @@ UserSchema.statics.addTwentyMembers = function () {
       password: 'dummy-hemligt',
       emergencyName: faker.name.firstName(),
       emergencyPhone: faker.phone.phoneNumberFormat(),
-      leader: !(Math.random() < .9)
+      leader: (Math.random() > .95)
     });
 
     users.push(user);
@@ -195,7 +204,13 @@ UserSchema.pre('save', function (next) {
   }
 });
 
+UserSchema.statics.removeDummyMembers = function () {
+  const User = this;
 
-const User = mongoose.model('User', UserSchema);
+  User.remove({ dummy: true }).exec();
+};
+
+
+const User = mongoose.model(`${process.env.DB_PREFIX}User`, UserSchema);
 
 module.exports = { User };

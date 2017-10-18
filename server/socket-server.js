@@ -12,6 +12,13 @@ let latSign = null;
 let lngInc = null;
 let lngSign = null;
 
+/**
+ * Todo: This file contains a lot of code that only pertains to the demo use of the app. It would be nice if I could
+ * separate that code from that which pertains to live use.
+ *
+ * Todo: I pass socket, io, and other stuff from function to function. Wouldn't it be better to set these variables
+ * globally in the file instead?
+ */
 
 class SocketServer {
   startSocketServer(io) {
@@ -31,7 +38,7 @@ class SocketServer {
               // Call a RiderService function that returns five dummy users from the db.
               User.findNextFiveDummyUsers(dummyRiders.length).then(dummies => {
                 // Todo: The way I handle the situation if there are too few users is kind of ugly (but it works).
-                if (dummies.length < 5) {
+                if ( dummies.length < 5 ) {
                   User.addTwentyMembers()
                     .then(() => {
                       this.setDummyRiderCoords(socket, io, user.ride, snappedPosition, dummies);
@@ -112,6 +119,7 @@ class SocketServer {
 
       // disconnect
       socket.on('disconnect', () => {
+        console.log("disconnect:", socket.id);
         let rider = RiderService.getRider(socket.id);
 
         if ( rider ) {
@@ -119,9 +127,9 @@ class SocketServer {
           RiderService.markAsDisconnected(rider);
           socket.leave(rider.ride);
           // Delay, to minimize the risk that riderList and disconnectedRider are received in the wrong order.
-          // setTimeout(() => {
-          socket.in(rider.ride).emit('disconnectedRider', _.pick(rider, '_id', 'disconnected'));
-          // }, 200);
+          setTimeout(() => {
+            socket.in(rider.ride).emit('disconnectedRider', _.pick(rider, '_id', 'disconnected'));
+          }, 200);
         }
       });
 
@@ -175,7 +183,6 @@ class SocketServer {
     if ( rider ) {  // Safety precaution.
       console.log("onleaveRide(). ride:", rider.ride, "rider:", rider.fname, rider.lname, rider._id);
       RiderService.removeRider(rider);
-      // io.in(rider.ride).emit('removedRider', _.pick(rider, '_id')._id.toString()); // _id is a mongoDB ObjectId.
       io.to(rider.ride).emit('removedRider', _.pick(rider, '_id')._id.toString()); // _id is a mongoDB ObjectId.
     }
   }
@@ -233,13 +240,13 @@ class SocketServer {
   }
 
   setDummyRiderCoords(socket, io, ride, snappedPosition, dummies) {
-    if (latSign === null) {
+    if ( latSign === null ) {
       latSign = Math.sign(Math.random() - .5);
       lngSign = Math.sign(Math.random() - .5);
 
       latInc = Math.random() * .00012;
       lngInc = Math.random() * .00012;
-      if (latInc < .00008 && lngInc < .00008) {
+      if ( latInc < .00008 && lngInc < .00008 ) {
         latInc += .00004;
         lngInc += .00004;
       }
@@ -251,7 +258,6 @@ class SocketServer {
       console.log("lngInc:", lngInc);
     }
 
-    // Loop through these ten dummy users and on each:
     dummies.forEach(dummy => {
       if ( dummy.timer ) clearInterval(dummy.timer);
 
@@ -271,30 +277,25 @@ class SocketServer {
       }
     };
     dummy.fauxSocketId = dummyRiders.length;
+    // dummy.creatorsSocketId = socket.id;
 
-    // call onJoinedRider
-    this.onJoinedRide(dummy, ride, () => { }, dummy.fauxSocketId, socket, io);
-    // set an intervalTimer that calls onUpdateUserPosition
+    this.onJoinedRide(dummy, ride, () => {
+    }, dummy.fauxSocketId, socket, io);
     dummy.timer = setInterval(() => {
-      // Modify the position
       dummy.position.coords.latitude += latInc;
       dummy.position.coords.longitude += lngInc;
 
       this.snapToRoad(dummy.position)
         .then(snappedPosition => {
-          // console.log("diff:", prevSnappedLat - dummy.position.coords.latitude, prevSnappedLng - dummy.position.coords.longitude);
-            if (prevSnappedLat &&
-                Math.abs(prevSnappedLat - snappedPosition.coords.latitude) < .00007 &&
-                Math.abs(prevSnappedLng - snappedPosition.coords.longitude) < .00007) {
-              // console.log("Before:", Math.sign(latInc), Math.sign(lngInc));
-              flipLatInc ? latInc *= -1.1 : lngInc *= -1.1;
-              flipLatInc = !flipLatInc;
-              // console.log("After:", Math.sign(latInc), Math.sign(lngInc));
-              // console.log("-------------");
-            }
+          if ( prevSnappedLat &&
+            Math.abs(prevSnappedLat - snappedPosition.coords.latitude) < .00007 &&
+            Math.abs(prevSnappedLng - snappedPosition.coords.longitude) < .00007 ) {
+            flipLatInc ? latInc *= -1.1 : lngInc *= -1.1;
+            flipLatInc = !flipLatInc;
+          }
 
-            prevSnappedLat = snappedPosition.coords.latitude;
-            prevSnappedLng = snappedPosition.coords.longitude;
+          prevSnappedLat = snappedPosition.coords.latitude;
+          prevSnappedLng = snappedPosition.coords.longitude;
 
           this.onUpdateUserPosition(dummy.fauxSocketId, snappedPosition, io, true)
         })
@@ -304,6 +305,14 @@ class SocketServer {
         );
     }, Math.random() * 1000 + 1500);
     dummyRiders.push(dummy);
+
+    setTimeout(() => {
+      clearInterval(dummy.timer);
+      io.to(dummy.ride).emit('removedRider', _.pick(dummy, '_id')._id.toString()); // _id is a mongoDB ObjectId.
+      dummyRiders = dummyRiders.filter(dummyRider => dummyRider._id !== dummy._id);
+      console.log("dummyRiders.length:", dummyRiders.length);
+    }, 3600000);
+
   }
 
 
