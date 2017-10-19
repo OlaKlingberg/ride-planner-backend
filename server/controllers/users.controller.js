@@ -17,6 +17,8 @@ const router = express.Router();
 // const { RiderService } = require('../utils/rider-service');
 // const { UserService } = require('../utils/user-service');
 
+let dummyMembersTimer;
+
 
 // Use JWT auth to secure the api
 // const authenticateWithJwt = expressJwt({ secret: process.env.JWT_SECRET });
@@ -30,6 +32,7 @@ router.post('/login', login);
 router.get('/authenticate-by-token', authenticate, authenticateByToken);
 router.get('/logout', authenticate, logout);
 router.get('/add-dummy-members', authenticate, addDummyMembers);
+router.get('/demo-users', getUnusedDemoUsers);
 
 
 // Route handlers
@@ -37,7 +40,7 @@ function getAllUsers(req, res) {
   // Todo: Protect: Only admins (and ride leaders?) should be able to call this.
   User.find({})
     .then(users => {
-      res.send({users});
+      res.send({ users });
     })
     .catch((e) => {
       res.status(400).send(e);
@@ -58,10 +61,10 @@ function registerNewUser(req, res) {
 }
 
 function login(req, res) {
-  // console.log("ConnectedLoggedInUsers:", UserService.connectedLoggedInUsers());
+  // console.log("ConnectedLoggedInUsers:", UserService.getConnectedLoggedInUsers());
   // console.log("req.body:", req.body);
 
-  if (UserService.isUserAlreadyLoggedInAndConnected(req.body.email)) return res.status(401).send("You are already logged in on another device. Log out or close the browser window on that device before logging in here.");
+  if ( UserService.isUserAlreadyLoggedInAndConnected(req.body.email) ) return res.status(401).send("You are already logged in on another device. Log out or close the browser window on that device before logging in here.");
 
   User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
@@ -94,17 +97,41 @@ function logout(req, res) {
 }
 
 function addDummyMembers(req, res) {
-  console.log("addDummyMembers. req.user.email:", req.user.email);
+  if ( dummyMembersTimer ) {
+    clearTimeout(dummyMembersTimer);
+  }
+
   User.addDummyMembers(req.user.email)
     .then(() => {
 
-    setTimeout(() => {
-      User.removeDummyMembers();
-    }, 300000);
+      // Remove all dummy members once no dummy members have been added for 1 hour.
+      // Todo: Come up with a better strategy. This could still remove dummy riders while somebody is watching.
+      dummyMembersTimer = setTimeout(() => {
+        User.removeDummyMembers();
+      }, 3600000);
 
       res.send();
     })
     .catch(e => {
+      res.status(400).send(e);
+    });
+}
+
+function getUnusedDemoUsers(req, res) {
+
+  User.getDemoUsers()
+    .then(demoUsers => {
+      demoUsers = demoUsers.map(user => _.pick(user, 'email')['email']);
+
+      let connectedLoggedInUsers = UserService.getConnectedLoggedInUsers()
+        .map(user => _.pick(user, 'email')['email']);
+
+      let unusedDemoUsers = _.difference(demoUsers, connectedLoggedInUsers);
+
+      res.send(unusedDemoUsers);
+    })
+    .catch(e => {
+      console.log(e);
       res.status(400).send(e);
     });
 }

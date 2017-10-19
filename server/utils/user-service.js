@@ -6,7 +6,7 @@ const UserService = {
     // console.log(connectedLoggedInUsers);
   },
 
-  connectedLoggedInUsers: () => {
+  getConnectedLoggedInUsers: () => {
     return connectedLoggedInUsers;
   },
 

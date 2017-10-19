@@ -42,7 +42,7 @@ class SocketServer {
           this.snapToRoad(user.position)
             .then(snappedPosition => {
               // Call a RiderService function that returns five dummy users from the db.
-              User.findNextFiveDummyUsers(dummyRiders.length).then(dummies => {
+              User.getDummyUsers(dummyRiders.length, 5).then(dummies => {
                 // Todo: The way I handle the situation if there are too few users is kind of ugly (but it works).
                 if ( dummies.length < 5 ) {
                   User.addDummyMembers()
@@ -71,9 +71,16 @@ class SocketServer {
       socket.on('giveMeAvailableRides', () => {
         console.log("socket.on('giveMeAvailableRides')");
 
+        // Todo: I could use a callback instead of emitting this!
         Ride.getRides().then(rides => {
           socket.emit('availableRides', rides);
         });
+      });
+
+
+      // giveMeConnectedLoggedInUsers
+      socket.on('giveMeConnectedLoggedInUsers', (callback) => {
+        callback(UserService.getConnectedLoggedInUsers());
       });
 
 

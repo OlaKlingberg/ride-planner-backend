@@ -134,7 +134,7 @@ UserSchema.statics.addDummyMembers = function (creatorEmail) {
       password: 'dummy-hemligt',
       emergencyName: faker.name.firstName(),
       emergencyPhone: faker.phone.phoneNumberFormat(),
-      leader: (Math.random() > .95)
+      leader: (Math.random() > .92)
     });
 
     users.push(user);
@@ -179,14 +179,22 @@ UserSchema.statics.findByCredentials = function (email, password) {
   })
 };
 
-UserSchema.statics.findNextFiveDummyUsers = function (skipNumber) {
+UserSchema.statics.getDemoUsers = function () {
+  const User = this;
+
+  return User.find({
+    demo: true
+  })
+};
+
+UserSchema.statics.getDummyUsers = function (skip, take) {
   const User = this;
 
   return User.find({
     dummy: true
   })
-    .skip(skipNumber)
-    .limit(5);
+    .skip(skip)
+    .limit(take);
 };
 
 UserSchema.pre('save', function (next) {
@@ -211,6 +219,6 @@ UserSchema.statics.removeDummyMembers = function () {
 };
 
 
-const User = mongoose.model(`${process.env.DB_PREFIX}User`, UserSchema);
+const User = mongoose.model('User', UserSchema);
 
 module.exports = { User };

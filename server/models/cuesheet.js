@@ -31,6 +31,6 @@ let CuesheetSchema = new mongoose.Schema({
 });
 
 
-const Cuesheet = mongoose.model(`${process.env.DB_PREFIX}Cuesheet`, CuesheetSchema);
+const Cuesheet = mongoose.model('Cuesheet', CuesheetSchema);
 
 module.exports = { Cuesheet };

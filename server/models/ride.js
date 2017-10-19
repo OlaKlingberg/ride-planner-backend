@@ -32,7 +32,7 @@ RideSchema.statics.getRides = function () {
 
 
 // const Ride = mongoose.model('Ride', RideSchema);
-const Ride = mongoose.model(`${process.env.DB_PREFIX}Ride`, RideSchema);
+const Ride = mongoose.model('Ride', RideSchema);
 
 module.exports = { Ride };
 
