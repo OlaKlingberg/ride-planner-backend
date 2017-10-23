@@ -1,0 +1,16 @@
+{
+  "test": {
+    "ENV": "test",
+    "PORT": "<number>",
+    "MONGODB_URI": "",
+    "JWT_SECRET": ""
+  },
+  "development": {
+    "ENV": "development",
+    "PORT": "<number>",
+    "MONGODB_URI": "",
+    "JWT_SECRET": ""
+  }
+}
+
+
