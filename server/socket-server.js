@@ -40,7 +40,7 @@ class SocketServer {
         User.findByToken(token).then(() => {
           console.log("addDummyRiders");
 
-          this.snapToRoad(user.position)
+          this.snapToRoad(user.position, callback)
             .then(snappedPosition => {
               // Call a RiderService function that returns five dummy users from the db.
               User.getDummyUsers(dummyRiders.length, 5).then(dummies => {
@@ -218,7 +218,7 @@ class SocketServer {
     }
   }
 
-  snapToRoad(position) {
+  snapToRoad(position, callback) {
     console.log("snapToRoad(position) position:", position, "GOOGLE_MAPS_KEY:", process.env.GOOGLE_MAPS_KEY);
     return new Promise((resolve, reject) => {
 
@@ -236,6 +236,7 @@ class SocketServer {
         }
         if ( error ) {
           console.log(error.message);
+          callback(error.message);
           // consume response data to free up memory
           res.resume();
           return;
