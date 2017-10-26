@@ -62,7 +62,7 @@ function registerNewUser(req, res) {
 
 function login(req, res) {
   // console.log("ConnectedLoggedInUsers:", UserService.getConnectedLoggedInUsers());
-  // console.log("req.body:", req.body);
+  // console.log("req.host:", req.host);
 
   if ( UserService.isUserAlreadyLoggedInAndConnected(req.body.email) ) return res.status(401).send("You are already logged in on another device. Log out or close the browser window on that device before logging in here.");
 

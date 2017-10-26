@@ -35,9 +35,10 @@ class SocketServer {
       });
 
       // addDummyRiders
-      socket.on('addDummyRiders', (user, token) => {
+      socket.on('addDummyRiders', (user, token, callback) => {
         // Verify that there is a user with that token. // Todo: Is that enough verification?
         User.findByToken(token).then(() => {
+          console.log("addDummyRiders");
 
           this.snapToRoad(user.position)
             .then(snappedPosition => {
@@ -47,11 +48,11 @@ class SocketServer {
                 if ( dummies.length < 5 ) {
                   User.addDummyMembers()
                     .then(() => {
-                      this.setDummyRiderCoords(socket, io, user.ride, snappedPosition, dummies);
+                      this.setDummyRiderCoords(socket, io, user.ride, snappedPosition, dummies, callback);
                     });
                 }
 
-                this.setDummyRiderCoords(socket, io, user.ride, snappedPosition, dummies);
+                this.setDummyRiderCoords(socket, io, user.ride, snappedPosition, dummies, callback);
               });
             });
 
@@ -218,9 +219,10 @@ class SocketServer {
   }
 
   snapToRoad(position) {
+    console.log("snapToRoad(position) position:", position, "GOOGLE_MAPS_KEY:", process.env.GOOGLE_MAPS_KEY);
     return new Promise((resolve, reject) => {
 
-      https.get(`https://roads.googleapis.com/v1/snapToRoads?path=${position.coords.latitude},${position.coords.longitude}&key=AIzaSyDcbNgBS0ykcFj8em8xT5WcDHZbFiVL5Ok`, (res) => {
+      https.get(`https://roads.googleapis.com/v1/snapToRoads?path=${position.coords.latitude},${position.coords.longitude}&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
         const statusCode = res.statusCode;
         const contentType = res.headers['content-type'];
 
@@ -259,7 +261,7 @@ class SocketServer {
     });
   }
 
-  setDummyRiderCoords(socket, io, ride, snappedPosition, dummies) {
+  setDummyRiderCoords(socket, io, ride, snappedPosition, dummies, callback) {
     if ( latSign === null ) {
       latSign = Math.sign(Math.random() - .5);
       lngSign = Math.sign(Math.random() - .5);
@@ -284,6 +286,8 @@ class SocketServer {
       const stepSize = Math.random() * .2 + 1;
       this.setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc * stepSize, lngInc * stepSize);
     });
+
+    callback();
   }
 
   setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc, lngInc) {
@@ -331,7 +335,7 @@ class SocketServer {
       io.to(dummy.ride).emit('removedRider', _.pick(dummy, '_id')._id.toString()); // _id is a mongoDB ObjectId.
       dummyRiders = dummyRiders.filter(dummyRider => dummyRider._id !== dummy._id);
       console.log("dummyRiders.length:", dummyRiders.length);
-    }, 3600000);
+    }, 300000);
 
   }
 
