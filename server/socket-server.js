@@ -222,6 +222,8 @@ class SocketServer {
     console.log("snapToRoad(position) position:", position, "GOOGLE_MAPS_KEY:", process.env.GOOGLE_MAPS_KEY);
     return new Promise((resolve, reject) => {
 
+      callback("About to send a request to roads.googleapis.com with key:", process.env.GOOGLE_MAPS_KEY);
+
       https.get(`https://roads.googleapis.com/v1/snapToRoads?path=${position.coords.latitude},${position.coords.longitude}&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
         const statusCode = res.statusCode;
         const contentType = res.headers['content-type'];
