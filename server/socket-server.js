@@ -222,8 +222,6 @@ class SocketServer {
     console.log("snapToRoad(position) position:", position, "GOOGLE_MAPS_KEY:", process.env.GOOGLE_MAPS_KEY);
     return new Promise((resolve, reject) => {
 
-      callback("About to send a request to roads.googleapis.com with key:", process.env.GOOGLE_MAPS_KEY);
-
       https.get(`https://roads.googleapis.com/v1/snapToRoads?path=${position.coords.latitude},${position.coords.longitude}&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
         const statusCode = res.statusCode;
         const contentType = res.headers['content-type'];
@@ -238,7 +236,7 @@ class SocketServer {
         }
         if ( error ) {
           console.log(error.message);
-          callback(error.message);
+          callback(error.message + '. googleMapsKey used on the backend: ' + process.env.GOOGLE_MAPS_KEY);
           // consume response data to free up memory
           res.resume();
           return;
@@ -253,6 +251,8 @@ class SocketServer {
             const snappedPoint = parsedData.snappedPoints[0].location;
 
             resolve({ coords: snappedPoint });
+            // console.log("googleMapsKey:", process.env.GOOGLE_MAPS_KEY);
+            callback("googleMapsKey used on the backend:" + process.env.GOOGLE_MAPS_KEY);
           } catch ( e ) {
             console.log(e.message);
             reject(e);
