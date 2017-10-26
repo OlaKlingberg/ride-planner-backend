@@ -236,7 +236,7 @@ class SocketServer {
         }
         if ( error ) {
           console.log(error.message);
-          callback(error.message + '. googleMapsKey used on the backend: ' + process.env.GOOGLE_MAPS_KEY);
+          callback(error.message);
           // consume response data to free up memory
           res.resume();
           return;
@@ -251,8 +251,6 @@ class SocketServer {
             const snappedPoint = parsedData.snappedPoints[0].location;
 
             resolve({ coords: snappedPoint });
-            // console.log("googleMapsKey:", process.env.GOOGLE_MAPS_KEY);
-            callback("googleMapsKey used on the backend:" + process.env.GOOGLE_MAPS_KEY);
           } catch ( e ) {
             console.log(e.message);
             reject(e);
