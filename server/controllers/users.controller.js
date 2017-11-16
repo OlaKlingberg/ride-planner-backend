@@ -32,6 +32,7 @@ router.post('/login', login);
 router.get('/authenticate-by-token', authenticate, authenticateByToken);
 router.get('/logout', authenticate, logout);
 router.get('/add-dummy-members', authenticate, addDummyMembers);
+router.get('/delete-dummy-members', authenticate, deleteDummyMembers);
 router.get('/demo-users', getUnusedDemoUsers);
 
 
@@ -113,6 +114,17 @@ function addDummyMembers(req, res) {
       res.send();
     })
     .catch(e => {
+      res.status(400).send(e);
+    });
+}
+
+function deleteDummyMembers(req, res) {
+  User.removeDummyMembers()
+    .then(() => {
+      res.send("This is the response!");
+    })
+    .catch(e => {
+      console.log(e);
       res.status(400).send(e);
     });
 }

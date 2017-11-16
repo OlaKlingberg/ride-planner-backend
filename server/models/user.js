@@ -215,7 +215,7 @@ UserSchema.pre('save', function (next) {
 UserSchema.statics.removeDummyMembers = function () {
   const User = this;
 
-  User.remove({ dummy: true }).exec();
+  return User.remove({ dummy: true }).exec();
 };
 
 

@@ -12,6 +12,7 @@ let latInc = null;
 let latSign = null;
 let lngInc = null;
 let lngSign = null;
+let snapToRoadCounter = 0;
 
 /**
  * Todo: This file contains a lot of code that only pertains to the demo use of the app. It would be nice if I could
@@ -116,8 +117,9 @@ class SocketServer {
 
       // removeDummyRiders
       socket.on('removeDummyRiders', (ride) => {
+        console.log('removeDummyRiders');
         dummyRiders.forEach(dummy => {
-          clearInterval(dummy.timer);
+          clearInterval(dummy.intervalTimer);
           let rider = RiderService.getRider(dummy.fauxSocketId);
           this.onLeaveRide(dummy.fauxSocketId, socket, io);
           io.in(ride).emit('removedRider', rider._id);
@@ -177,23 +179,21 @@ class SocketServer {
     socket.join(ride);
     if ( user.admin ) socket.join('admins');
 
-    // Emits public info about the joinedRider to everybody on the ride.
     let rider = RiderService.addRider(user, ride, socketId);
 
     if ( rider.leader ) {
-      io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'phone', 'dummy'))
+      // The joinedRider is a ride leader, so emit the rider's full info to everybody on the ride.
+      io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'phone', 'dummy', 'emergencyName', 'emergencyPhone'))
     } else {
+      // The joinedRider is NOT a ride leader, so emit only public info to everybody on the ride.
       io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'dummy'))
     }
 
-    // Emits all info about the joinedRider to ride leaders on the ride.
+    // Emit all info about the joinedRider to ride leaders on the ride.
     // Todo: What happens if this arrives before the message emitted above?
     let rideLeaders = RiderService.getRideLeaders(rider.ride);
     rideLeaders.forEach(leader => {
-      // JSON.stringify(rider.position.coords.latitude));
-
-      io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'dummy'));
-      // io.in(rider.ride).emit('joinedRider', rider); // Todo: Why does this sent "latitude: undefined"?
+      socket.in(rider.ride).broadcast.to(leader.socketId).emit('joinedRider', rider);
     });
 
     callback();
@@ -219,8 +219,10 @@ class SocketServer {
   }
 
   snapToRoad(position, callback) {
-    console.log("snapToRoad(position) position:", position, "GOOGLE_MAPS_KEY:", process.env.GOOGLE_MAPS_KEY);
+    // console.log("snapToRoad(position) position:", position, "GOOGLE_MAPS_KEY:", process.env.GOOGLE_MAPS_KEY);
     return new Promise((resolve, reject) => {
+
+      console.log("snapToRoads, calls #:", ++snapToRoadCounter);
 
       https.get(`https://roads.googleapis.com/v1/snapToRoads?path=${position.coords.latitude},${position.coords.longitude}&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
         const statusCode = res.statusCode;
@@ -282,7 +284,7 @@ class SocketServer {
     }
 
     dummies.forEach(dummy => {
-      if ( dummy.timer ) clearInterval(dummy.timer);
+      if ( dummy.intervalTimer ) clearInterval(dummy.intervalTimer);
 
       const stepSize = Math.random() * .2 + 1;
       this.setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc * stepSize, lngInc * stepSize);
@@ -306,7 +308,7 @@ class SocketServer {
 
     this.onJoinedRide(dummy, ride, () => {
     }, dummy.fauxSocketId, socket, io);
-    dummy.timer = setInterval(() => {
+    dummy.intervalTimer = setInterval(() => {
       dummy.position.coords.latitude += latInc;
       dummy.position.coords.longitude += lngInc;
 
@@ -332,10 +334,9 @@ class SocketServer {
     dummyRiders.push(dummy);
 
     setTimeout(() => {
-      clearInterval(dummy.timer);
+      clearInterval(dummy.intervalTimer);
       io.to(dummy.ride).emit('removedRider', _.pick(dummy, '_id')._id.toString()); // _id is a mongoDB ObjectId.
       dummyRiders = dummyRiders.filter(dummyRider => dummyRider._id !== dummy._id);
-      console.log("dummyRiders.length:", dummyRiders.length);
     }, 300000);
 
   }

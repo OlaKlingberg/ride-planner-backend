@@ -7,7 +7,7 @@ const UserService = {
   },
 
   getConnectedLoggedInUsers: () => {
-    return connectedLoggedInUsers;
+    return connectedLoggedInUsers.sort();
   },
 
   isUserAlreadyLoggedInAndConnected: (email) => {
