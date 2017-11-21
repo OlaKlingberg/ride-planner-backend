@@ -190,10 +190,11 @@ class SocketServer {
     }
 
     // Emit all info about the joinedRider to ride leaders on the ride.
-    // Todo: What happens if this arrives before the message emitted above?
+    // Todo: What happens if this arrives before the message emitted above? Should I set a small delay?
     let rideLeaders = RiderService.getRideLeaders(rider.ride);
     rideLeaders.forEach(leader => {
-      socket.in(rider.ride).broadcast.to(leader.socketId).emit('joinedRider', rider);
+      console.log(`About to emit all info about rider ${rider.fname} ${rider.lname} with phone ${rider.phone} to leader ${leader.fname} ${leader.lname}`);
+      io.in(rider.ride).to(leader.socketId).emit('joinedRider', rider);
     });
 
     callback();
