@@ -118,6 +118,7 @@ UserSchema.methods.removeToken = function (token) {
 
 
 UserSchema.statics.addDummyMembers = function (creatorEmail) {
+  console.log("addDummyMembers");
   const User = this;
   let users = [];
 
@@ -140,6 +141,7 @@ UserSchema.statics.addDummyMembers = function (creatorEmail) {
     users.push(user);
   }
 
+  console.log("About to insert 20 dummy members in the db.");
   return User.create(users);
 };
 
