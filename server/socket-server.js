@@ -13,7 +13,6 @@ let latSign = null;
 let lngInc = null;
 let lngSign = null;
 let snapToRoadCounter = 0;
-let steps = [];
 
 /**
  * Todo: This file contains a lot of code that only pertains to the demo use of the app. It would be nice if I could
@@ -24,6 +23,8 @@ let steps = [];
  */
 
 class SocketServer {
+
+
   startSocketServer(io) {
 
     io.on('connection', (socket) => {
@@ -32,7 +33,7 @@ class SocketServer {
       socket.emit('socketConnection', socket.id);
 
       // AddConnectedLoggedInUser
-      socket.on('AddConnectedLoggedInUser', email => {
+      socket.on('addConnectedLoggedInUser', email => {
         UserService.addConnectedLoggedInUser(email, socket.id);
       });
 
@@ -40,61 +41,38 @@ class SocketServer {
       socket.on('addDummyRiders', (user, token, callback) => {
         // Verify that there is a user with that token. // Todo: Is that enough verification?
         User.findByToken(token).then(() => {
+          console.log("1. Verified token.");
           let lat1 = user.position.coords.latitude;
           let lng1 = user.position.coords.longitude;
 
-          let { lat2, lng2 } = this.generateRandomPosition(lat1, lng1);
-          console.log("Random lat2:", lat2);
-          console.log("Random lng2:", lng2);
+          let destinationPromise = this.setDestination(io, socket, callback, lat1, lng1);
 
-          this.findNearbyPlace(lat2, lng2).then(({ lat2, lng2 }) => {
-            console.log("Place lat2:", lat2);
-            console.log("Place lng2:", lng2);
-
-            User.count({ dummy: true }, (err, count) => {
-              console.log(`Number of dummyRiders: ${dummyRiders.length}.`);
-              console.log(`Number of dummy users: ${count}`);
+          let dummyRidersPromise = this.checkSupplyOfDummyMembers()
+            .then(count => {
+              console.log("8. Returned from checkSupplyOfDummyMembers();");
               if ( count - dummyRiders.length < 5 ) {
-                console.log("Need to add dummy members.");
-                User.addDummyMembers(user.email).then(() => {
-                  console.log("Just added dummy members.");
-                  this.addSomeDummyRiders(io, socket);
+                // console.log("Need to add dummy members.");
+                return User.addDummyMembers(user.email).then(() => {
+                  console.log("9. Just added dummy members.");
+                  return this.addDummyRiders();
                 });
               } else {
-                console.log("No need to dummy members.");
-                this.addSomeDummyRiders(io, socket);
+                console.log("9. No need to dummy members.");
+                return this.addDummyRiders();
               }
+            });
+
+          Promise.all([destinationPromise, dummyRidersPromise])
+            .then(values => {
+              let steps = values[0];
+              console.log("12. We have dummy riders, and we have steps!");
+              steps.forEach(step => console.log(step.end_location));
+              dummyRiders.forEach(rider => console.log(rider.fname));
+              console.log("13. This should be the last line, for now!");
             })
-          }).catch(err => {
-            console.log("This is where I need to handle the error! -----------------------------------------");
-            callback('Error')
-          });
         }).catch(err => {
           console.log("Err:", err); // Todo: Handle error.
         });
-
-        // User.findByToken(token).then(() => {
-        //   console.log("addDummyRiders");
-        //
-        //   this.snapToRoad(user.position, callback)
-        //     .then(snappedPosition => {
-        //       // Call a RiderService function that returns five dummy users from the db.
-        //       User.getDummyUsers(dummyRiders.length, 5).then(dummies => {
-        //         // Todo: The way I handle the situation if there are too few users is kind of ugly (but it works).
-        //         if ( dummies.length < 5 ) {
-        //           User.addDummyMembers()
-        //             .then(() => {
-        //               this.setDummyRiderCoords(socket, io, user.ride, snappedPosition, dummies, callback);
-        //             });
-        //         }
-        //
-        //         this.setDummyRiderCoords(socket, io, user.ride, snappedPosition, dummies, callback);
-        //       });
-        //     });
-        //
-        // }).catch(err => {
-        //   console.log("The user was not found! err:", err); // Todo: Handle error.
-        // });
       });
 
       // debugging
@@ -102,7 +80,6 @@ class SocketServer {
         console.log("debugging", message);
         io.in('admins').emit('debugging', message);
       });
-
 
       // giveMeAvailableRides
       socket.on('giveMeAvailableRides', () => {
@@ -114,31 +91,25 @@ class SocketServer {
         });
       });
 
-
       // giveMeConnectedLoggedInUsers
       socket.on('giveMeConnectedLoggedInUsers', (callback) => {
         callback(UserService.getConnectedLoggedInUsers());
       });
-
 
       // giveMeRiderList
       socket.on('giveMeRiderList', ride => {
         this.onGiveMeRiderList(socket.id, socket, ride)
       });
 
-
       // joinRide
       socket.on('joinRide', (user, ride, token, callback) => {
         // Verify that there is a user with that token. // Todo: Is that enough verification?
         User.findByToken(token).then(() => {
-
           this.onJoinedRide(user, ride, callback, socket.id, socket, io);
-
         }).catch(err => {
           console.log("The user was not found! err:", err); // Todo: Handle error.
         });
       });
-
 
       // leaveRide
       socket.on('leaveRide', () => {
@@ -146,7 +117,7 @@ class SocketServer {
       });
 
       // RemoveConnectedLoggedInUser
-      socket.on('RemoveConnectedLoggedInUser', email => {
+      socket.on('removeConnectedLoggedInUser', email => {
         UserService.removeConnectedLoggedInUser(socket.id);
       });
 
@@ -166,12 +137,10 @@ class SocketServer {
         socket.leave(ride);
       });
 
-
       // updateUserPosition
       socket.on('updateUserPosition', position => {
         this.onUpdateUserPosition(socket.id, position, io);
       });
-
 
       // disconnect
       socket.on('disconnect', () => {
@@ -191,7 +160,147 @@ class SocketServer {
           }, 200);
         }
       });
+    });
+  }
 
+  addDummyRiders() {
+    console.log("10. addDummyRiders()");
+    return User.getDummyUsers(dummyRiders.length, 5)
+      .then(dummies => {
+        console.log(`11. Just added ${dummies.length} to dummyRiders, which is now ${dummyRiders.length} riders long!`);
+        dummyRiders.push(...dummies);
+      });
+  }
+
+  checkSupplyOfDummyMembers() {
+    console.log("7. checkSupplyOfDummyMembers()");
+    return User.count({ dummy: true });
+  }
+
+  degreesToRadians(degrees) {
+    return degrees * Math.PI / 180;
+  }
+
+  distanceBetweenCoords(lat1, lng1, lat2, lng2) {
+    const earthRadius = 6371000;
+
+    const dLat = this.degreesToRadians(lat2 - lat1);
+    const dLon = this.degreesToRadians(lng2 - lng1);
+
+    lat1 = this.degreesToRadians(lat1);
+    lat2 = this.degreesToRadians(lat2);
+
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  findNearbyPlace(lat, lng) {
+    console.log("5. findNearbyPlace()");
+    return new Promise((resolve, reject) => {
+
+      https.get(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=400&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
+        const statusCode = res.statusCode;
+        const contentType = res.headers['content-type'];
+
+        let error;
+        if ( statusCode !== 200 ) {
+          error = new Error('Request Failed.\n' +
+            `Status Code: ${statusCode}`);
+        } else if ( !/^application\/json/.test(contentType) ) {
+          error = new Error('Invalid content-type.\n' +
+            `Expected application/json but received ${contentType}`);
+        }
+        if ( error ) {
+          console.log(error.message);
+          callback(error.message);
+          // consume response data to free up memory
+          res.resume();
+          return;
+        }
+
+        res.setEncoding('utf8');
+        let rawData = '';
+        res.on('data', (chunk) => rawData += chunk);
+        res.on('end', () => {
+          try {
+            const parsedData = JSON.parse(rawData);
+
+            const lat2 = parsedData.results[0].geometry.location.lat;
+            const lng2 = parsedData.results[0].geometry.location.lng;
+
+            resolve({ lat2, lng2 });
+          } catch ( e ) {
+            console.log("findNearbPlace. in the try-catch clause: e.message:", e.message);
+            reject(e);
+          }
+        });
+      }).on('error', (e) => {
+        console.log(`Got error: ${e.message}`);
+      });
+    });
+  }
+
+  generateRandomPosition(lat1, lng1) {
+    console.log("3. generateRandomPosition()");
+    let lat2;
+    let lng2;
+
+    let dist = 0;
+
+    while ( dist < 7000 ) {
+      lat2 = lat1 + Math.random() * .2 - .1;
+      lng2 = lng1 + Math.random() * .2 - .1;
+
+      dist = this.distanceBetweenCoords(lat1, lng1, lat2, lng2);
+      console.log("Dist till random spot:", dist);
+    }
+
+    return { lat2, lng2 };
+  }
+
+  getDirections(lat1, lng1, lat2, lng2) {
+    console.log("7. getDirections()");
+    return new Promise((resolve, reject) => {
+
+      https.get(`https://maps.googleapis.com/maps/api/directions/json?origin=${lat1},${lng1}&destination=${lat2},${lng2}&mode=bicycling&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
+        const statusCode = res.statusCode;
+        const contentType = res.headers['content-type'];
+
+        let error;
+        if ( statusCode !== 200 ) {
+          error = new Error('Request Failed.\n' +
+            `Status Code: ${statusCode}`);
+        } else if ( !/^application\/json/.test(contentType) ) {
+          error = new Error('Invalid content-type.\n' +
+            `Expected application/json but received ${contentType}`);
+        }
+        if ( error ) {
+          console.log(error.message);
+          callback(error.message);
+          // consume response data to free up memory
+          res.resume();
+          return;
+        }
+
+        res.setEncoding('utf8');
+        let rawData = '';
+        res.on('data', (chunk) => rawData += chunk);
+        res.on('end', () => {
+          try {
+            const parsedData = JSON.parse(rawData);
+
+            resolve(parsedData.routes[0].legs[0].steps);
+
+          } catch ( e ) {
+            console.log(e.message);
+            reject(e);
+          }
+        });
+      }).on('error', (e) => {
+        console.log(`Got error: ${e.message}`);
+      });
     });
   }
 
@@ -255,6 +364,34 @@ class SocketServer {
     }
   }
 
+  setDestination(io, socket, callback, lat1, lng1, errorCount = 0) {
+    console.log("2. setDestionation(). errorCount:", errorCount);
+    let { lat2, lng2 } = this.generateRandomPosition(lat1, lng1);
+    console.log("4. returned from generateRandomPosition");
+    // console.log("Random lat2:", lat2);
+    // console.log("Random lng2:", lng2);
+
+    return this.findNearbyPlace(lat2, lng2)
+      .then(({ lat2, lng2 }) => {
+        console.log("6. Returned from findNearbyPlace");
+
+        console.log("We have a destination!");
+        console.log("Dest lat2:", lat2);
+        console.log("Dest lng2:", lng2);
+
+        return this.getDirections(lat1, lng1, lat2, lng2);
+      })
+      .catch(err => {
+        console.log("setDestination.catch(). errorCount:", errorCount, err.message);
+        if ( errorCount++ < 20 ) {
+          console.log("---------------------- errorCount:", errorCount);
+          return this.setDestination(io, socket, callback, lat1, lng1, errorCount);
+        } else {
+          return callback('Failed to set destination');
+        }
+      });
+  }
+
   snapToRoad(position, callback) {
     // console.log("snapToRoad(position) position:", position, "GOOGLE_MAPS_KEY:", process.env.GOOGLE_MAPS_KEY);
     return new Promise((resolve, reject) => {
@@ -301,221 +438,82 @@ class SocketServer {
     });
   }
 
-  setDummyRiderCoords(socket, io, ride, snappedPosition, dummies, callback) {
-    if ( latSign === null ) {
-      latSign = Math.sign(Math.random() - .5);
-      lngSign = Math.sign(Math.random() - .5);
+  // setDummyRiderCoords(socket, io, ride, snappedPosition, dummies, callback) {
+  //   if ( latSign === null ) {
+  //     latSign = Math.sign(Math.random() - .5);
+  //     lngSign = Math.sign(Math.random() - .5);
+  //
+  //     latInc = Math.random() * .00012;
+  //     lngInc = Math.random() * .00012;
+  //     if ( latInc < .00008 && lngInc < .00008 ) {
+  //       latInc += .00004;
+  //       lngInc += .00004;
+  //     }
+  //
+  //     latInc *= latSign;
+  //     lngInc *= lngSign;
+  //
+  //     console.log("latInc:", latInc);
+  //     console.log("lngInc:", lngInc);
+  //   }
+  //
+  //   dummies.forEach(dummy => {
+  //     if ( dummy.intervalTimer ) clearInterval(dummy.intervalTimer);
+  //
+  //     const stepSize = Math.random() * .2 + 1;
+  //     this.setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc * stepSize, lngInc * stepSize);
+  //   });
+  //
+  //   callback();
+  // }
 
-      latInc = Math.random() * .00012;
-      lngInc = Math.random() * .00012;
-      if ( latInc < .00008 && lngInc < .00008 ) {
-        latInc += .00004;
-        lngInc += .00004;
-      }
-
-      latInc *= latSign;
-      lngInc *= lngSign;
-
-      console.log("latInc:", latInc);
-      console.log("lngInc:", lngInc);
-    }
-
-    dummies.forEach(dummy => {
-      if ( dummy.intervalTimer ) clearInterval(dummy.intervalTimer);
-
-      const stepSize = Math.random() * .2 + 1;
-      this.setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc * stepSize, lngInc * stepSize);
-    });
-
-    callback();
-  }
-
-  setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc, lngInc) {
-    let prevSnappedLat = null;
-    let prevSnappedLng = null;
-    let flipLatInc = true;
-    dummy.position = {
-      coords: {
-        latitude: snappedPosition.coords.latitude + Math.random() * .00006 - .00003,
-        longitude: snappedPosition.coords.longitude + Math.random() * .00006 - .00003
-      }
-    };
-    dummy.fauxSocketId = dummyRiders.length;
-    // dummy.creatorsSocketId = socket.id;
-
-    this.onJoinedRide(dummy, ride, () => {
-    }, dummy.fauxSocketId, socket, io);
-    dummy.intervalTimer = setInterval(() => {
-      dummy.position.coords.latitude += latInc;
-      dummy.position.coords.longitude += lngInc;
-
-      this.snapToRoad(dummy.position)
-        .then(snappedPosition => {
-          if ( prevSnappedLat &&
-            Math.abs(prevSnappedLat - snappedPosition.coords.latitude) < .00007 &&
-            Math.abs(prevSnappedLng - snappedPosition.coords.longitude) < .00007 ) {
-            flipLatInc ? latInc *= -1.1 : lngInc *= -1.1;
-            flipLatInc = !flipLatInc;
-          }
-
-          prevSnappedLat = snappedPosition.coords.latitude;
-          prevSnappedLng = snappedPosition.coords.longitude;
-
-          this.onUpdateUserPosition(dummy.fauxSocketId, snappedPosition, io, true)
-        })
-        .catch(e => {
-            console.log("onUpdateUserPosition napToRoad.catch(e)", e); // Todo: Do I need any error handling here?
-          }
-        );
-    }, Math.random() * 1000 + 1500);
-    dummyRiders.push(dummy);
-
-    dummy.removeTimer = setTimeout(() => {
-      clearInterval(dummy.intervalTimer);
-      io.to(dummy.ride).emit('removedRider', _.pick(dummy, '_id')._id.toString()); // _id is a mongoDB ObjectId.
-      dummyRiders = dummyRiders.filter(dummyRider => dummyRider._id !== dummy._id);
-    }, 300000);
-  }
-
-  generateRandomPosition(lat1, lng1) {
-    let lat2;
-    let lng2;
-
-    let dist = 0;
-
-    while ( dist < 7000 ) {
-      lat2 = lat1 + Math.random() * .2 - .1;
-      lng2 = lng1 + Math.random() * .2 - .1;
-
-      dist = this.distanceBetweenCoords(lat1, lng1, lat2, lng2);
-      console.log("Dist till random spot:", dist);
-    }
-
-    return { lat2, lng2 };
-  }
-
-  findNearbyPlace(lat, lng) {
-    return new Promise((resolve, reject) => {
-
-      https.get(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=400&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
-        const statusCode = res.statusCode;
-        const contentType = res.headers['content-type'];
-
-        let error;
-        if ( statusCode !== 200 ) {
-          error = new Error('Request Failed.\n' +
-            `Status Code: ${statusCode}`);
-        } else if ( !/^application\/json/.test(contentType) ) {
-          error = new Error('Invalid content-type.\n' +
-            `Expected application/json but received ${contentType}`);
-        }
-        if ( error ) {
-          console.log(error.message);
-          callback(error.message);
-          // consume response data to free up memory
-          res.resume();
-          return;
-        }
-
-        res.setEncoding('utf8');
-        let rawData = '';
-        res.on('data', (chunk) => rawData += chunk);
-        res.on('end', () => {
-          try {
-
-            const parsedData = JSON.parse(rawData);
-
-            const lat2 = parsedData.results[0].geometry.location.lat;
-            const lng2 = parsedData.results[0].geometry.location.lng;
-
-            resolve({ lat2, lng2 });
-          } catch ( e ) {
-            console.log(e.message);
-            reject(e);
-            // resolve('Error!', {lat2, lng2});
-          }
-        });
-      }).on('error', (e) => {
-        console.log(`Got error: ${e.message}`);
-      });
-    });
-
-  }
-
-  getDirections(lat1, lng1, lat2, lng2) {
-    return new Promise((resolve, reject) => {
-
-      https.get(`https://maps.googleapis.com/maps/api/directions/json?origin=${lat1},${lng1}&destination=${lat2},${lng2}&mode=bicycling&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
-        const statusCode = res.statusCode;
-        const contentType = res.headers['content-type'];
-
-        let error;
-        if ( statusCode !== 200 ) {
-          error = new Error('Request Failed.\n' +
-            `Status Code: ${statusCode}`);
-        } else if ( !/^application\/json/.test(contentType) ) {
-          error = new Error('Invalid content-type.\n' +
-            `Expected application/json but received ${contentType}`);
-        }
-        if ( error ) {
-          console.log(error.message);
-          callback(error.message);
-          // consume response data to free up memory
-          res.resume();
-          return;
-        }
-
-        res.setEncoding('utf8');
-        let rawData = '';
-        res.on('data', (chunk) => rawData += chunk);
-        res.on('end', () => {
-          try {
-            const parsedData = JSON.parse(rawData);
-
-            resolve(parsedData.routes[0].legs[0].steps);
-
-          } catch ( e ) {
-            console.log(e.message);
-            reject(e);
-          }
-        });
-      }).on('error', (e) => {
-        console.log(`Got error: ${e.message}`);
-      });
-    });
-  }
-
-  degreesToRadians(degrees) {
-    return degrees * Math.PI / 180;
-  }
-
-  distanceBetweenCoords(lat1, lng1, lat2, lng2) {
-    const earthRadius = 6371000;
-
-    const dLat = this.degreesToRadians(lat2 - lat1);
-    const dLon = this.degreesToRadians(lng2 - lng1);
-
-    lat1 = this.degreesToRadians(lat1);
-    lat2 = this.degreesToRadians(lat2);
-
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return earthRadius * c;
-  }
-
-  addSomeDummyRiders(io, socket) {
-    console.log("addSomeDummyRiders()");
-    User.getDummyUsers(dummyRiders.length, 5).then(dummies => {
-      dummyRiders.push(...dummies);
-      console.log(`Just added ${dummies.length} to dummyRiders, which is now ${dummyRiders.length} riders long!`);
-    });
-  }
-
-
-
+  // setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc, lngInc) {
+  //   let prevSnappedLat = null;
+  //   let prevSnappedLng = null;
+  //   let flipLatInc = true;
+  //   dummy.position = {
+  //     coords: {
+  //       latitude: snappedPosition.coords.latitude + Math.random() * .00006 - .00003,
+  //       longitude: snappedPosition.coords.longitude + Math.random() * .00006 - .00003
+  //     }
+  //   };
+  //   dummy.fauxSocketId = dummyRiders.length;
+  //   // dummy.creatorsSocketId = socket.id;
+  //
+  //   this.onJoinedRide(dummy, ride, () => {
+  //   }, dummy.fauxSocketId, socket, io);
+  //   dummy.intervalTimer = setInterval(() => {
+  //     dummy.position.coords.latitude += latInc;
+  //     dummy.position.coords.longitude += lngInc;
+  //
+  //     this.snapToRoad(dummy.position)
+  //       .then(snappedPosition => {
+  //         if ( prevSnappedLat &&
+  //           Math.abs(prevSnappedLat - snappedPosition.coords.latitude) < .00007 &&
+  //           Math.abs(prevSnappedLng - snappedPosition.coords.longitude) < .00007 ) {
+  //           flipLatInc ? latInc *= -1.1 : lngInc *= -1.1;
+  //           flipLatInc = !flipLatInc;
+  //         }
+  //
+  //         prevSnappedLat = snappedPosition.coords.latitude;
+  //         prevSnappedLng = snappedPosition.coords.longitude;
+  //
+  //         this.onUpdateUserPosition(dummy.fauxSocketId, snappedPosition, io, true)
+  //       })
+  //       .catch(e => {
+  //           console.log("onUpdateUserPosition napToRoad.catch(e)", e); // Todo: Do I need any error handling here?
+  //         }
+  //       );
+  //   }, Math.random() * 1000 + 1500);
+  //   dummyRiders.push(dummy);
+  //
+  //   dummy.removeTimer = setTimeout(() => {
+  //     clearInterval(dummy.intervalTimer);
+  //     io.to(dummy.ride).emit('removedRider', _.pick(dummy, '_id')._id.toString()); // _id is a mongoDB ObjectId.
+  //     dummyRiders = dummyRiders.filter(dummyRider => dummyRider._id !== dummy._id);
+  //   }, 300000);
+  // }
 
 }
 
-module
-  .exports = { SocketServer };
+module.exports = { SocketServer };
