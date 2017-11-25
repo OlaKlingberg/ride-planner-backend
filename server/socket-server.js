@@ -26,9 +26,9 @@ class SocketServer {
 
 
   startSocketServer(io) {
-
     io.on('connection', (socket) => {
       console.log("connection. socket.id:", socket.id, new Date().toString());
+      let steps;
 
       socket.emit('socketConnection', socket.id);
 
@@ -39,38 +39,93 @@ class SocketServer {
 
       // addDummyRiders
       socket.on('addDummyRiders', (user, token, callback) => {
+        // let ride = user.ride;
+        // let position = user.position;
+        // console.log("ride:", ride);
         // Verify that there is a user with that token. // Todo: Is that enough verification?
         User.findByToken(token).then(() => {
-          console.log("1. Verified token.");
-          let lat1 = user.position.coords.latitude;
-          let lng1 = user.position.coords.longitude;
+          console.log("1a. Verified token.");
+          // let lat1 = position.coords.latitude;
+          // let lng1 = position.coords.longitude;
 
-          let destinationPromise = this.setDestination(io, socket, callback, lat1, lng1);
+          let getStepsPromise = new Promise((resolve, reject) => {
+            if ( steps ) {
+              console.log("There are already steps");
+              resolve(steps);
+            } else {
+              console.log("There are no steps yet!");
+              return this.snapToRoad(user.position)
+                .then(snappedPosition => {
+                  console.log("1c. Returned from snapToRoad()");
+                  console.log("snapped lat:", snappedPosition.coords.latitude);
+                  console.log("snapped lng:", snappedPosition.coords.longitude);
+
+                  return this.setDestination(snappedPosition)
+                    .then(steps => {
+                      console.log("8. Returned from setDestination");
+                      resolve(steps);
+                    })
+                    .catch(err => {
+                      console.log("Catch set directly on this.setDestination(). err:", err);
+                      callback(err.message);
+                    });
+                });
+
+            }
+          });
+
 
           let dummyRidersPromise = this.checkSupplyOfDummyMembers()
             .then(count => {
-              console.log("8. Returned from checkSupplyOfDummyMembers();");
+              console.log("102. Returned from checkSupplyOfDummyMembers();");
               if ( count - dummyRiders.length < 5 ) {
                 // console.log("Need to add dummy members.");
                 return User.addDummyMembers(user.email).then(() => {
-                  console.log("9. Just added dummy members.");
+                  console.log("103. Just added dummy members.");
                   return this.addDummyRiders();
                 });
               } else {
-                console.log("9. No need to dummy members.");
+                console.log("103. No need to dummy members.");
                 return this.addDummyRiders();
               }
+            })
+            .catch(err => {
+              console.log("dummyRidersPromise.catch()", err); // Todo: Handle error.
             });
 
-          Promise.all([destinationPromise, dummyRidersPromise])
+          return Promise.all([getStepsPromise, dummyRidersPromise])
             .then(values => {
-              let steps = values[0];
-              console.log("12. We have dummy riders, and we have steps!");
+              console.log("201. We have dummy riders, and we have steps!");
+              steps = values[0];
+              let dummies = values[1];
               steps.forEach(step => console.log(step.end_location));
-              dummyRiders.forEach(rider => console.log(rider.fname));
-              console.log("13. This should be the last line, for now!");
-            })
+
+              dummies.forEach(dummy => {
+                console.log(dummy.fname, dummy.lname);
+                dummy.fauxSocketId = dummyRiders.length;
+
+                dummy.position = JSON.parse(JSON.stringify(user.position));
+                console.log("------ dummy.position:", dummy.position);
+
+                // Todo: Can I replace the empty function with null?
+                this.onJoinedRide(io, socket, dummy, user.ride, () => {
+                }, dummy.fauxSocketId);
+                dummyRiders.push(dummy);
+
+                // Delay, to lessen the risk that socket messages will arrive in the wrong order.
+                setTimeout(() => {
+                  this.setDummyRidersCoordsInterval(io, dummy, steps);
+                }, 200);
+              });
+
+
+            }).catch(err => {
+              console.log("Promise.all.catch() ++++++++++++++++++++++++", err);
+              callback(err);
+            });
         }).catch(err => {
+          console.log("User.findToken.catch() =====================================");
+          console.log("err:", err, err.message)
           console.log("Err:", err); // Todo: Handle error.
         });
       });
@@ -105,7 +160,7 @@ class SocketServer {
       socket.on('joinRide', (user, ride, token, callback) => {
         // Verify that there is a user with that token. // Todo: Is that enough verification?
         User.findByToken(token).then(() => {
-          this.onJoinedRide(user, ride, callback, socket.id, socket, io);
+          this.onJoinedRide(io, socket, user, ride, callback, socket.id);
         }).catch(err => {
           console.log("The user was not found! err:", err); // Todo: Handle error.
         });
@@ -113,7 +168,7 @@ class SocketServer {
 
       // leaveRide
       socket.on('leaveRide', () => {
-        this.onLeaveRide(socket.id, socket, io);
+        this.onLeaveRide(io, socket, socket.id);
       });
 
       // RemoveConnectedLoggedInUser
@@ -126,9 +181,10 @@ class SocketServer {
         console.log('removeDummyRiders');
         dummyRiders.forEach(dummy => {
           clearInterval(dummy.intervalTimer);
-          clearTimout(dummy.removeTimer);
+          // clearTimout(dummy.removeTimer);
           let rider = RiderService.getRider(dummy.fauxSocketId);
-          this.onLeaveRide(dummy.fauxSocketId, socket, io);
+          this.onLeaveRide(io, socket, dummy.fauxSocketId);
+          // console.log("rider:", rider);
           io.in(ride).emit('removedRider', rider._id);
         });
 
@@ -139,7 +195,7 @@ class SocketServer {
 
       // updateUserPosition
       socket.on('updateUserPosition', position => {
-        this.onUpdateUserPosition(socket.id, position, io);
+        this.onUpdateUserPosition(io, socket.id, position);
       });
 
       // disconnect
@@ -163,17 +219,18 @@ class SocketServer {
     });
   }
 
+
   addDummyRiders() {
-    console.log("10. addDummyRiders()");
+    console.log("104. addDummyRiders()");
     return User.getDummyUsers(dummyRiders.length, 5)
       .then(dummies => {
-        console.log(`11. Just added ${dummies.length} to dummyRiders, which is now ${dummyRiders.length} riders long!`);
-        dummyRiders.push(...dummies);
+        console.log(`105. Just added ${dummies.length} to dummyRiders, which is now ${dummyRiders.length} riders long!`);
+        return dummies;
       });
   }
 
   checkSupplyOfDummyMembers() {
-    console.log("7. checkSupplyOfDummyMembers()");
+    console.log("101. checkSupplyOfDummyMembers()");
     return User.count({ dummy: true });
   }
 
@@ -232,7 +289,7 @@ class SocketServer {
 
             resolve({ lat2, lng2 });
           } catch ( e ) {
-            console.log("findNearbPlace. in the try-catch clause: e.message:", e.message);
+            console.log("findNearbyPlace. in the try-catch clause: e.message:", e.message);
             reject(e);
           }
         });
@@ -318,8 +375,8 @@ class SocketServer {
     }
   }
 
-  onJoinedRide(user, ride, callback, socketId, socket, io) {
-    console.log("onJoinedRide. user:", user.fname, user.lname, user.fauxSocketId);
+  onJoinedRide(io, socket, user, ride, callback, socketId) {
+    console.log("onJoinedRide:", user.fname, user.lname, socketId);
 
     socket.join(ride);
     if ( user.admin ) socket.join('admins');
@@ -328,9 +385,12 @@ class SocketServer {
 
     if ( rider.leader ) {
       // The joinedRider is a ride leader, so emit the rider's full info to everybody on the ride.
+      console.log(`1. About to emit all info about rider ${rider.fname} ${rider.lname} with phone ${rider.phone} in
+      ${rider.ride}`);
       io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'phone', 'dummy', 'emergencyName', 'emergencyPhone'))
     } else {
       // The joinedRider is NOT a ride leader, so emit only public info to everybody on the ride.
+      console.log(`2. About to emit *some* info to ${rider.fname} ${rider.lname} in ${rider.ride}.`);
       io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'dummy'))
     }
 
@@ -338,14 +398,15 @@ class SocketServer {
     // Todo: What happens if this arrives before the message emitted above? Should I set a small delay?
     let rideLeaders = RiderService.getRideLeaders(rider.ride);
     rideLeaders.forEach(leader => {
-      console.log(`About to emit all info about rider ${rider.fname} ${rider.lname} with phone ${rider.phone} to leader ${leader.fname} ${leader.lname}`);
+      console.log(`3. About to emit all info about rider ${rider.fname} ${rider.lname} with phone ${rider.phone} to leader ${leader.fname} ${leader.lname} in ${rider.ride}`);
       io.in(rider.ride).to(leader.socketId).emit('joinedRider', rider);
+
     });
 
     callback();
   }
 
-  onLeaveRide(socketId, socket, io) {
+  onLeaveRide(io, socket, socketId) {
     let rider = RiderService.getRider(socketId);
     if ( rider ) {  // Safety precaution.
       console.log("onleaveRide(). ride:", rider.ride, "rider:", rider.fname, rider.lname, rider._id);
@@ -354,17 +415,24 @@ class SocketServer {
     }
   }
 
-  onUpdateUserPosition(socketId, position, io) {
-    // console.log("onUpdateUserPosition. socketId:", socketId);
+  onUpdateUserPosition(io, socketId, position) {
+    console.log("onUpdateUserPosition. socketId:", socketId);
     let rider = RiderService.updateRiderPosition(socketId, position);
     if ( rider ) {
+      console.log("rider:", rider.fname, rider.lname, rider.ride, rider._id);
       setTimeout(() => {
+        // console.log(`About to emit updatedRiderPosition in ${rider.ride}:`);
+        // console.log(_.pick(rider, '_id', 'position'));
+        // io.in(rider.ride).emit('updatedRiderPosition', _.pick(rider, '_id', 'position'));
         io.in(rider.ride).emit('updatedRiderPosition', _.pick(rider, '_id', 'position'));
+        // io.in(rider.ride).emit('updatedRiderPosition', 'TestMessage');
       }, 200);
     }
   }
 
-  setDestination(io, socket, callback, lat1, lng1, errorCount = 0) {
+  setDestination(position, errorCount = 0) {
+    let lat1 = position.coords.latitude;
+    let lng1 = position.coords.longitude;
     console.log("2. setDestionation(). errorCount:", errorCount);
     let { lat2, lng2 } = this.generateRandomPosition(lat1, lng1);
     console.log("4. returned from generateRandomPosition");
@@ -383,16 +451,17 @@ class SocketServer {
       })
       .catch(err => {
         console.log("setDestination.catch(). errorCount:", errorCount, err.message);
-        if ( errorCount++ < 20 ) {
-          console.log("---------------------- errorCount:", errorCount);
-          return this.setDestination(io, socket, callback, lat1, lng1, errorCount);
+        if ( errorCount++ < 10 ) {
+          return this.setDestination(position, errorCount);
         } else {
-          return callback('Failed to set destination');
+          console.log("Okay, we failed!");
+          return Promise.reject('Failed to set destination (from setDestination.catch())');
         }
       });
   }
 
-  snapToRoad(position, callback) {
+  snapToRoad(position) {
+    console.log("1b. snapToRoad()");
     // console.log("snapToRoad(position) position:", position, "GOOGLE_MAPS_KEY:", process.env.GOOGLE_MAPS_KEY);
     return new Promise((resolve, reject) => {
 
@@ -424,9 +493,10 @@ class SocketServer {
         res.on('end', () => {
           try {
             const parsedData = JSON.parse(rawData);
-            const snappedPoint = parsedData.snappedPoints[0].location;
+            position.coords.latitude = parsedData.snappedPoints[0].location.latitude;
+            position.coords.longitude = parsedData.snappedPoints[0].location.longitude;
 
-            resolve({ coords: snappedPoint });
+            resolve(position);
           } catch ( e ) {
             console.log(e.message);
             reject(e);
@@ -436,6 +506,36 @@ class SocketServer {
         console.log(`Got error: ${e.message}`);
       });
     });
+  }
+
+
+  setDummyRidersCoordsInterval(io, dummy, steps) {
+    console.log("13. setDummyRidersCoordsInterval()");
+    console.log(dummy.fname, dummy.lname, dummy.fauxSocketId);
+
+    let position = {
+      coords: {
+        latitude: steps[0].start_location.lat,
+        longitude: steps[0].start_location.lng
+      }
+    };
+
+    this.onUpdateUserPosition(io, dummy.fauxSocketId, position);
+
+    let counter = 0;
+    let time = Math.random() * 500;
+
+    dummy.intervalTimer = setInterval(() => {
+      // console.log("dummy.intervalTimer:", dummy.intervalTimer);
+
+      position.coords.latitude = steps[counter].end_location.lat;
+      position.coords.longitude = steps[counter++].end_location.lng;
+
+      this.onUpdateUserPosition(io, dummy.fauxSocketId, position);
+      // if ( counter === steps.length - 1 ) {
+      if ( !steps[counter] ) clearInterval(dummy.intervalTimer);
+    }, 1500 + time);
+
   }
 
   // setDummyRiderCoords(socket, io, ride, snappedPosition, dummies, callback) {
@@ -461,9 +561,9 @@ class SocketServer {
   //     if ( dummy.intervalTimer ) clearInterval(dummy.intervalTimer);
   //
   //     const stepSize = Math.random() * .2 + 1;
-  //     this.setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc * stepSize, lngInc * stepSize);
+  //     this.setDummyRiderCoordsIntervalTimer(socket, io, ride, snappedPosition, dummy, latInc * stepSize, lngInc *
+  //       stepSize);
   //   });
-  //
   //   callback();
   // }
 
@@ -480,8 +580,10 @@ class SocketServer {
   //   dummy.fauxSocketId = dummyRiders.length;
   //   // dummy.creatorsSocketId = socket.id;
   //
-  //   this.onJoinedRide(dummy, ride, () => {
-  //   }, dummy.fauxSocketId, socket, io);
+  //   // Todo: Can I replace the empty function with null?
+  //   this.onJoinedRide(io, socket, dummy, ride, () => {
+  //   }, dummy.fauxSocketId);
+  //
   //   dummy.intervalTimer = setInterval(() => {
   //     dummy.position.coords.latitude += latInc;
   //     dummy.position.coords.longitude += lngInc;
@@ -498,10 +600,10 @@ class SocketServer {
   //         prevSnappedLat = snappedPosition.coords.latitude;
   //         prevSnappedLng = snappedPosition.coords.longitude;
   //
-  //         this.onUpdateUserPosition(dummy.fauxSocketId, snappedPosition, io, true)
+  //         this.onUpdateUserPosition(io, dummy.fauxSocketId, snappedPosition)
   //       })
   //       .catch(e => {
-  //           console.log("onUpdateUserPosition napToRoad.catch(e)", e); // Todo: Do I need any error handling here?
+  //           console.log("onUpdateUserPosition snapToRoad.catch(e)", e); // Todo: Do I need any error handling here?
   //         }
   //       );
   //   }, Math.random() * 1000 + 1500);

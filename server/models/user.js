@@ -32,39 +32,61 @@ let UserSchema = new mongoose.Schema({
         message: '{VALUE} is not a valid email'
       }
     },
+    fauxSocketId: {
+      type: String,
+      required:
+        false
+    }
+    ,
     password: {
       type: String,
-      require: true,
-      minlength: 6
-    },
+      require:
+        true,
+      minlength:
+        6
+    }
+    ,
     emergencyName: {
       type: String,
-      required: false,
-      trim: true
-    },
+      required:
+        false,
+      trim:
+        true
+    }
+    ,
     emergencyPhone: {
       type: String,
-      required: false,
-      trim: true
-    },
+      required:
+        false,
+      trim:
+        true
+    }
+    ,
     admin: {
       type: Boolean,
-      require: false
-    },
+      require:
+        false
+    }
+    ,
     dummy: {
       type: Boolean,
-      require: false
-    },
+      require:
+        false
+    }
+    ,
     dummyCreator: {
       type: String,
-      require: false
-    },
+      require:
+        false
+    }
+    ,
     leader: {
       type: Boolean,
       require:
         false
     }
     ,
+
     tokens: [{
       access: {
         type: String,
@@ -78,7 +100,9 @@ let UserSchema = new mongoose.Schema({
   },
   {
     timestamps: true
-  });
+  }
+  )
+;
 
 // Overrides the Mongoose toJSON function, which seems to be applied behind the scenes when the response with the user
 // is sent in users.controller.js. Only the members specified here are included on the user object sent in the
