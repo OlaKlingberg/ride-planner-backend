@@ -36,19 +36,17 @@ class SocketServer {
       socket.on('addDummyRiders', (user, token, callback) => {
         // Verify that there is a user with that token. // Todo: Is that enough verification?
         User.findByToken(token).then(() => {
-          console.log("1a. Verified token.");
-          if ( steps ) {
-            console.log("addDummyRiders. steps.length:", steps.length);
-          } else {
-            console.log("No steps!");
-          }
+          console.log("1. Verified token.");
 
-          let stepsPromise = this.getSteps(steps, user.position);
+          let userLat = user.position.coords.latitude;
+          let userLng = user.position.coords.longitude;
+
+          let stepsPromise = this.getSteps(steps, userLat, userLng);
           let dummyRidersPromise = this.getDummyRiders();
 
           return Promise.all([stepsPromise, dummyRidersPromise])
             .then(values => {
-              console.log("201. We have dummy riders, and we have steps!");
+              console.log("301. We have dummy riders, and we have steps!");
               steps = values[0];
               let dummies = values[1];
               steps.forEach(step => console.log(step.end_location));
@@ -58,7 +56,6 @@ class SocketServer {
                 dummy.fauxSocketId = dummyRiders.length;
 
                 dummy.position = JSON.parse(JSON.stringify(user.position));
-                console.log("------ dummy.position:", dummy.position);
 
                 this.onJoinedRide(io, socket, dummy, user.ride, dummy.fauxSocketId);
                 dummyRiders.push(dummy);
@@ -175,16 +172,16 @@ class SocketServer {
   }
 
   addDummyRiders() {
-    console.log("104. addDummyRiders()");
+    console.log("205. addDummyRiders()");
     return User.getDummyUsers(dummyRiders.length, 5)
       .then(dummies => {
-        console.log(`105. Just created dummyRiders`);
+        console.log(`206. Just created dummyRiders`);
         return dummies;
       });
   }
 
   checkSupplyOfDummyMembers() {
-    console.log("101. checkSupplyOfDummyMembers()");
+    console.log("202. checkSupplyOfDummyMembers()");
     return User.count({ dummy: true });
   }
 
@@ -208,7 +205,7 @@ class SocketServer {
   }
 
   findNearbyPlace(lat, lng) {
-    console.log("5. findNearbyPlace()");
+    console.log("107. findNearbyPlace()");
     return new Promise((resolve, reject) => {
 
       https.get(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=400&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
@@ -238,10 +235,10 @@ class SocketServer {
           try {
             const parsedData = JSON.parse(rawData);
 
-            const lat2 = parsedData.results[0].geometry.location.lat;
-            const lng2 = parsedData.results[0].geometry.location.lng;
+            const placeLat = parsedData.results[0].geometry.location.lat;
+            const placeLng = parsedData.results[0].geometry.location.lng;
 
-            resolve({ lat2, lng2 });
+            resolve({ placeLat, placeLng });
           } catch ( e ) {
             console.log("findNearbyPlace. in the try-catch clause: e.message:", e.message);
             reject(e);
@@ -253,30 +250,30 @@ class SocketServer {
     });
   }
 
-  generateRandomPosition(lat1, lng1) {
-    console.log("3. generateRandomPosition()");
-    let lat2;
-    let lng2;
+  generateRandomPosition(lat, lng) {
+    console.log("105. generateRandomPosition()");
+    let randomLat;
+    let randomLng;
     let dist = 0;
 
     while ( dist < 7000 ) {
-      lat2 = lat1 + Math.random() * .2 - .1;
-      lng2 = lng1 + Math.random() * .2 - .1;
+      randomLat = lat + Math.random() * .2 - .1;
+      randomLng = lng + Math.random() * .2 - .1;
 
-      dist = this.distanceBetweenCoords(lat1, lng1, lat2, lng2);
+      dist = this.distanceBetweenCoords(lat, lng, randomLat, randomLng);
       console.log("Dist till random spot:", dist);
     }
 
-    console.log("lat2:", lat2);
-    console.log("lng2:", lng2);
-    return { lat2, lng2 };
+    console.log("randomLat:", randomLat);
+    console.log("randomLng:", randomLng);
+    return { randomLat, randomLng };
   }
 
-  getDirections(lat1, lng1, lat2, lng2) {
-    console.log("7. getDirections()");
+  getDirections(originLat, originLng, destLat, destLng) {
+    console.log("110. getDirections()");
     return new Promise((resolve, reject) => {
 
-      https.get(`https://maps.googleapis.com/maps/api/directions/json?origin=${lat1},${lng1}&destination=${lat2},${lng2}&mode=bicycling&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
+      https.get(`https://maps.googleapis.com/maps/api/directions/json?origin=${originLat},${originLng}&destination=${destLat},${destLng}&mode=bicycling&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
         const statusCode = res.statusCode;
         const contentType = res.headers['content-type'];
 
@@ -317,16 +314,17 @@ class SocketServer {
   }
 
   getDummyRiders() {
+    console.log("201. getDummyRiders()");
     return this.checkSupplyOfDummyMembers()
       .then(count => {
-        console.log("102. Returned from checkSupplyOfDummyMembers();");
+        console.log("203. Returned from checkSupplyOfDummyMembers();");
         if ( count - dummyRiders.length < 5 ) {
           return User.addDummyMembers(user.email).then(() => {
-            console.log("103. Just added dummy members.");
+            console.log("204. Just added dummy members.");
             return this.addDummyRiders();
           });
         } else {
-          console.log("103. No need to dummy members.");
+          console.log("204. No need to dummy members.");
           return this.addDummyRiders();
         }
       })
@@ -335,31 +333,67 @@ class SocketServer {
       });
   }
 
-  getSteps(steps, position) {
+  getIntermediateSteps(steps) {
+    let detailedSteps = [];
+
+    let counter = 0;
+
+    while ( counter < 100 ) {
+      if ( steps[counter + 1] ) {
+        let currentLat = dummy.position.coords.latitude;
+        let currentLng = dummy.position.coords.longitude;
+        let nextLat = steps[counter].end_location.lat;
+        let nextLng = steps[counter].end_location.lng;
+        let dist = this.distanceBetweenCoords(currentLat, currentLng, nextLat, nextLng);
+        console.log("dist:", dist);
+        if ( dist < 30 ) {
+          position.coords.latitude = nextLat;
+          position.coords.longitude = nextLng;
+          counter++;
+        } else {
+          let divider = dist / 30;
+          divider *= (.9 + Math.random() * .2);
+          position.coords.latitude = currentLat + (nextLat - currentLat) / divider;
+          position.coords.longitude = currentLng + (nextLng - currentLng) / divider;
+        }
+      }
+    }
+
+    this.onUpdateUserPosition(io, dummy.fauxSocketId, position);
+    if ( !steps[counter] ) clearInterval(dummy.intervalTimer);
+  }
+
+  getSteps(steps, userLat, userLng) {
+    console.log("101. getSteps()");
     return new Promise((resolve, reject) => {
       if ( steps ) {
         console.log("There are already steps");
         resolve(steps);
-      } else {
-        console.log("There are no steps yet!");
-        return this.snapToRoad(position)
-          .then(snappedPosition => {
-            console.log("1c. Returned from snapToRoad()");
-            console.log("snapped lat:", snappedPosition.coords.latitude);
-            console.log("snapped lng:", snappedPosition.coords.longitude);
-
-            return this.setDestination(snappedPosition)
-              .then(steps => {
-                console.log("8. Returned from setDestination");
-                resolve(steps);
-              })
-              .catch(err => {
-                console.log("Catch set directly on this.setDestination(). err:", err);
-                callback(err.message);
-              });
-          });
-
+        return;
       }
+      console.log("There are no steps yet!");
+
+      return this.snapToRoad(userLat, userLng)
+        .then(({snappedLat, snappedLng}) => {
+          console.log("103. Returned from snapToRoad()");
+          console.log("snappedLat:", snappedLat);
+          console.log("snappedLng:", snappedLng);
+
+          return this.setDestination(snappedLat, snappedLng)
+        }).then(({destLat, destLng}) => {
+        console.log("109. Returned from setDestination()");
+          return this.getDirections(userLat, userLng, destLat, destLng);
+        }).then(steps => {
+          console.log("111. Returned from getDirections");
+
+          // this.getIntermediateSteps(steps);
+
+          resolve(steps);
+        })
+        .catch(err => {
+          console.log("Catch set directly on this.setDestination(). err:", err);
+          callback(err.message);
+        });
     });
   }
 
@@ -423,27 +457,23 @@ class SocketServer {
     }
   }
 
-  setDestination(position, errorCount = 0) {
-    let lat1 = position.coords.latitude;
-    let lng1 = position.coords.longitude;
-    console.log("2. setDestionation(). errorCount:", errorCount);
-    let { lat2, lng2 } = this.generateRandomPosition(lat1, lng1);
-    console.log("4. returned from generateRandomPosition", lat2, lng2);
+  setDestination(lat, lng, errorCount = 0) {
+    console.log("104. setDestionation(). errorCount:", errorCount);
+    let { randomLat, randomLng } = this.generateRandomPosition(lat, lng);
+    console.log("106. returned from generateRandomPosition", randomLat, randomLng);
 
-    return this.findNearbyPlace(lat2, lng2)
-      .then(({ lat2, lng2 }) => {
-        console.log("6. Returned from findNearbyPlace", lat2, lng2);
+    return this.findNearbyPlace(randomLat, randomLng)
+      .then(({placeLat, placeLng}) => {
+      console.log("108. Returned from findNearbyPlace()");
+        let destLat = placeLat;
+        let destLng = placeLng;
 
-        console.log("We have a destination!");
-        console.log("Dest lat2:", lat2);
-        console.log("Dest lng2:", lng2);
-
-        return this.getDirections(lat1, lng1, lat2, lng2);
+        return {destLat, destLng};
       })
       .catch(err => {
         console.log("setDestination.catch(). errorCount:", errorCount, err.message);
         if ( errorCount++ < 10 ) {
-          return this.setDestination(position, errorCount);
+          return this.setDestination(lat, lng, errorCount);
         } else {
           console.log("Okay, we failed!");
           return Promise.reject('Failed to set destination (from setDestination.catch())');
@@ -452,7 +482,7 @@ class SocketServer {
   }
 
   setDummyRidersCoordsInterval(io, dummy, steps) {
-    console.log("13. setDummyRidersCoordsInterval()");
+    console.log("302. setDummyRidersCoordsInterval()");
     console.log(dummy.fname, dummy.lname, dummy.fauxSocketId);
 
     let position = {
@@ -469,7 +499,6 @@ class SocketServer {
 
     dummy.intervalTimer = setInterval(() => {
 
-      // Is the next location is less then 30m from the previous one?
       if ( steps[counter + 1] ) {
         let currentLat = dummy.position.coords.latitude;
         let currentLng = dummy.position.coords.longitude;
@@ -477,39 +506,28 @@ class SocketServer {
         let nextLng = steps[counter].end_location.lng;
         let dist = this.distanceBetweenCoords(currentLat, currentLng, nextLat, nextLng);
         console.log("dist:", dist);
-        if (dist < 30) {
-          // Yes
-          // Set the location to the next step.
+        if ( dist < 30 ) {
           position.coords.latitude = nextLat;
           position.coords.longitude = nextLng;
-          // Update the counter.
           counter++;
         } else {
-          // No
-          // Divide the distance to the next step with 30.
           let divider = dist / 30;
-          // Take the result and multiply it with a random number between .9 and 1.1.
           divider *= (.9 + Math.random() * .2);
-          // Update the location with that portion of the distance to the next step.
           position.coords.latitude = currentLat + (nextLat - currentLat) / divider;
           position.coords.longitude = currentLng + (nextLng - currentLng) / divider;
-          // Don't update the counter.
         }
       }
-
-      // position.coords.latitude = steps[counter].end_location.lat;
-      // position.coords.longitude = steps[counter++].end_location.lng;
 
       this.onUpdateUserPosition(io, dummy.fauxSocketId, position);
       if ( !steps[counter] ) clearInterval(dummy.intervalTimer);
     }, 1000 + time);
   }
 
-  snapToRoad(position) {
-    console.log("1b. snapToRoad()");
+  snapToRoad(lat, lng) {
+    console.log("102. snapToRoad()");
     return new Promise((resolve, reject) => {
 
-      https.get(`https://roads.googleapis.com/v1/snapToRoads?path=${position.coords.latitude},${position.coords.longitude}&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
+      https.get(`https://roads.googleapis.com/v1/snapToRoads?path=${lat},${lng}&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
         const statusCode = res.statusCode;
         const contentType = res.headers['content-type'];
 
@@ -535,10 +553,10 @@ class SocketServer {
         res.on('end', () => {
           try {
             const parsedData = JSON.parse(rawData);
-            position.coords.latitude = parsedData.snappedPoints[0].location.latitude;
-            position.coords.longitude = parsedData.snappedPoints[0].location.longitude;
+            let snappedLat = parsedData.snappedPoints[0].location.latitude;
+            let snappedLng = parsedData.snappedPoints[0].location.longitude;
 
-            resolve(position);
+            resolve({snappedLat, snappedLng});
           } catch ( e ) {
             console.log(e.message);
             reject(e);
