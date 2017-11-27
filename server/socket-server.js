@@ -19,11 +19,11 @@ let dummyRiders = []; // Todo: Move this to rider-service, for the sake of consi
 
 class SocketServer {
 
-
   startSocketServer(io) {
     io.on('connection', (socket) => {
       console.log("connection. socket.id:", socket.id, new Date().toString());
-      let steps;
+      let abortDummyRiders = false;
+      let steps = [];
 
       socket.emit('socketConnection', socket.id);
 
@@ -37,29 +37,72 @@ class SocketServer {
         // Verify that there is a user with that token. // Todo: Is that enough verification?
         User.findByToken(token).then(() => {
           console.log("1. Verified token.");
+          abortDummyRiders = false;
 
           let userLat = user.position.coords.latitude;
           let userLng = user.position.coords.longitude;
 
-          let stepsPromise = this.getSteps(steps, userLat, userLng);
-          let dummyRidersPromise = this.getDummyRiders();
+          let stepsPromise = new Promise((resolve, reject) => {
+            if ( steps.length > 0 ) {
+              console.log("2. There are already steps");
+              resolve(steps);
+            } else {
+              console.log("2. There are NO steps yet.");
+              this.getSteps(userLat, userLng)
+                .then(setOfSteps => {
+                  steps.push(...setOfSteps);
+                  let lastStep = steps[steps.length - 1];
+                  return this.getSteps(lastStep.lat, lastStep.lng)
+                })
+                .then(setOfSteps => {
+                  steps.push(...setOfSteps);
+                  resolve(steps);
+                });
+            }
+          });
+
+          let dummyRidersPromise = new Promise((resolve, reject) => {
+            this.getDummyRiders()
+              .then(dummies => {
+                dummies.forEach(dummy => {
+                  console.log(dummy.fname, dummy.lname);
+                  dummy.fauxSocketId = dummyRiders.length;
+
+                  // dummy.position = JSON.parse(JSON.stringify(user.position));
+
+                  dummy.position = {
+                    coords: {
+                      latitude: user.position.coords.latitude + Math.random() * .0002 - .0001,
+                      longitude: user.position.coords.longitude + Math.random() * .0002 - .0001
+                    }
+                  };
+
+                  // console.log("user.position:", user.position);
+                  // console.log("dummy.position:", dummy.position);
+
+                  this.onJoinedRide(io, socket, dummy, user.ride, dummy.fauxSocketId);
+                  // this.onUpdateUserPosition(io, dummy.fauxSocketId, position);
+
+                  dummyRiders.push(dummy);
+                });
+
+
+                resolve(dummies);
+              });
+          });
 
           return Promise.all([stepsPromise, dummyRidersPromise])
             .then(values => {
-              console.log("301. We have dummy riders, and we have steps! Number of steps:", values[0].length);
+              console.log("301. We have dummy riders, and we have steps!");
+              if (abortDummyRiders) {
+                console.log("abortDummyRiders, so no action.");
+                return;
+              }
+
               steps = values[0];
               let dummies = values[1];
-              // steps.forEach(step => console.log(step.end_location));
 
               dummies.forEach(dummy => {
-                console.log(dummy.fname, dummy.lname);
-                dummy.fauxSocketId = dummyRiders.length;
-
-                dummy.position = JSON.parse(JSON.stringify(user.position));
-
-                this.onJoinedRide(io, socket, dummy, user.ride, dummy.fauxSocketId);
-                dummyRiders.push(dummy);
-
                 // Delay, to lessen the risk that socket messages will arrive in the wrong order.
                 setTimeout(() => {
                   this.setDummyRidersCoordsInterval(io, dummy, steps);
@@ -132,13 +175,18 @@ class SocketServer {
       // removeDummyRiders
       socket.on('removeDummyRiders', ride => {
         console.log('removeDummyRiders');
+        abortDummyRiders = true;
+        steps = [];
+
         // console.log("steps.length:", steps.length);
-        steps = null;
+        steps = [];
         dummyRiders.forEach(dummy => {
-          clearInterval(dummy.intervalTimer);
           let rider = RiderService.getRider(dummy.fauxSocketId);
           this.onLeaveRide(io, dummy.fauxSocketId);
           io.in(ride).emit('removedRider', rider._id);
+          setTimeout(() => {
+            clearInterval(dummy.intervalTimer);
+          }, 200);
         });
 
         dummyRiders = [];
@@ -190,7 +238,7 @@ class SocketServer {
   }
 
   distanceBetweenCoords(lat1, lng1, lat2, lng2) {
-    console.log("116. distanceBetweenCoords()", lat1, lng1, lat2, lng2);
+    // console.log("116. distanceBetweenCoords()", lat1, lng1, lat2, lng2);
     const earthRadius = 6371000;
 
     const dLat = this.degreesToRadians(lat2 - lat1);
@@ -343,17 +391,17 @@ class SocketServer {
     let stepsCounter = 1;
 
     for ( let i = 0; i < 99; i++ ) {
-      console.log("115. i:", i);
+      // console.log("115. i:", i);
       if ( steps[stepsCounter] ) {
         let currentLat = smallSteps[i].lat;
         let currentLng = smallSteps[i].lng;
         let nextLat = steps[stepsCounter].lat;
         let nextLng = steps[stepsCounter].lng;
-        console.log(currentLat, currentLng, nextLat, nextLng);
+        // console.log(currentLat, currentLng, nextLat, nextLng);
         let dist = this.distanceBetweenCoords(currentLat, currentLng, nextLat, nextLng);
-        console.log("117. dist:", dist);
+        // console.log("117. dist:", dist);
         if ( dist < 30 ) {
-          smallSteps.push({lat: nextLat, lng: nextLng});
+          smallSteps.push({ lat: nextLat, lng: nextLng });
           stepsCounter++;
         } else {
           let divider = dist / 30;
@@ -371,45 +419,37 @@ class SocketServer {
     return smallSteps;
   }
 
-  getSteps(steps, userLat, userLng) {
+  getSteps(lat, lng) {
     console.log("101. getSteps()");
-    return new Promise((resolve, reject) => {
-      if ( steps ) {
-        console.log("There are already steps");
-        resolve(steps);
-        return;
-      }
-      console.log("There are no steps yet!");
 
-      return this.snapToRoads([{lat: userLat, lng: userLng}])
-        .then(snappedPoints => {
-          console.log("103. Returned from snapToRoads()");
-          console.log("snappedLat:", snappedPoints[0].lat);
-          console.log("snappedLng:", snappedPoints[0].lng);
+    return this.snapToRoads([{ lat, lng }])
+      .then(snappedPoints => {
+        console.log("103. Returned from snapToRoads()");
+        console.log("snappedLat:", snappedPoints[0].lat);
+        console.log("snappedLng:", snappedPoints[0].lng);
 
-          return this.setDestination(snappedPoints[0].lat, snappedPoints[0].lng)
-        }).then(({ destLat, destLng }) => {
-          console.log("109. Returned from setDestination()");
-          return this.getDirections(userLat, userLng, destLat, destLng);
-        }).then(steps => {
-          console.log("111. Returned from getDirections");
+        return this.setDestination(snappedPoints[0].lat, snappedPoints[0].lng)
+      }).then(({ destLat, destLng }) => {
+        console.log("109. Returned from setDestination()");
+        return this.getDirections(lat, lng, destLat, destLng);
+      }).then(steps => {
+        console.log("111. Returned from getDirections");
 
-          let simplifiedSteps = this.simplifySteps(steps);
-          console.log("113. Returned from simplifySteps");
+        let simplifiedSteps = this.simplifySteps(steps);
+        console.log("113. Returned from simplifySteps");
 
-          let smallSteps = this.getSmallSteps(simplifiedSteps);
-          console.log("118. We have small steps. smallSteps.length:", smallSteps.length);
-          return this.snapToRoads(smallSteps);
-        })
-        .then(snappedSmallSteps => {
-          console.log("119. snappedSmallSteps:", snappedSmallSteps);
-          resolve(snappedSmallSteps);
-        })
-        .catch(err => {
-          console.log("Catch set directly on this.setDestination(). err:", err);
-          callback(err.message);
-        });
-    });
+        let smallSteps = this.getSmallSteps(simplifiedSteps);
+        console.log("118. We have small steps. smallSteps.length:", smallSteps.length);
+        return this.snapToRoads(smallSteps);
+      })
+      // .then(snappedSmallSteps => {
+      //   console.log("119. snappedSmallSteps:", snappedSmallSteps);
+      //   resolve(snappedSmallSteps);
+      // })
+      .catch(err => {
+        console.log("Catch set directly on this.setDestination(). err:", err);
+        callback(err.message);
+      });
   }
 
   onGiveMeRiderList(socketId, socket, ride) {
@@ -425,7 +465,7 @@ class SocketServer {
   }
 
   onJoinedRide(io, socket, user, ride, socketId) {
-    console.log("onJoinedRide:", user.fname, user.lname, socketId);
+    console.log("onJoinedRide:", user);
 
     socket.join(ride);
     if ( user.admin ) socket.join('admins');
@@ -440,6 +480,7 @@ class SocketServer {
     } else {
       // The joinedRider is NOT a ride leader, so emit only public info to everybody on the ride.
       console.log(`2. About to emit *some* info to ${rider.fname} ${rider.lname} in ${rider.ride}.`);
+      console.log(_.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'dummy'));
       io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'dummy'))
     }
 
@@ -447,8 +488,11 @@ class SocketServer {
     // Todo: What happens if this arrives before the message emitted above? Should I set a small delay?
     let rideLeaders = RiderService.getRideLeaders(rider.ride);
     rideLeaders.forEach(leader => {
-      console.log(`3. About to emit all info about rider ${rider.fname} ${rider.lname} with phone ${rider.phone} to leader ${leader.fname} ${leader.lname} in ${rider.ride}`);
-      io.in(rider.ride).to(leader.socketId).emit('joinedRider', rider);
+      console.log(`3. About to emit all info about rider ${rider.fname} ${rider.lname} with phone ${rider.phone} to leader ${leader.fname} ${leader.lname} in ${rider.ride}.`);
+      console.log(rider);
+      // io.in(rider.ride).to(leader.socketId).emit('joinedRider', rider);
+      io.in(rider.ride).emit('joinedRider', _.pick(rider, '_id', 'fname', 'lname', 'disconnected', 'position', 'leader', 'phone', 'dummy', 'emergencyName', 'emergencyPhone'))
+
     });
   }
 
@@ -500,21 +544,23 @@ class SocketServer {
     // console.log("302. setDummyRidersCoordsInterval()");
 
     let counter = 0;
-    let time = Math.random() * 500;
+    let time = Math.random() * 700;
 
     dummy.intervalTimer = setInterval(() => {
       console.log("counter:", counter, ". steps.length:", steps.length);
 
       let position = {
         coords: {
-          latitude: steps[counter].lat,
-          longitude: steps[counter].lng
+          latitude: steps[counter].lat + Math.random() * .00006 - .00003,
+          longitude: steps[counter].lng + Math.random() * .00006 - .00003,
         }
       };
 
       this.onUpdateUserPosition(io, dummy.fauxSocketId, position);
-      if ( !steps[++counter] ) clearInterval(dummy.intervalTimer);
-    }, 500 + time);
+      if ( !steps[++counter] ) {
+        clearInterval(dummy.intervalTimer);
+      }
+    }, 1300 + time);
   }
 
   simplifySteps(steps) {
@@ -543,7 +589,7 @@ class SocketServer {
       return `${point.lat},${point.lng}`;
     });
     let path = points.join('|');
-    console.log("path:", path);
+    // console.log("path:", path);
 
 
     return new Promise((resolve, reject) => {
@@ -576,10 +622,10 @@ class SocketServer {
             const parsedData = JSON.parse(rawData);
 
             let snappedPoints = parsedData.snappedPoints.map(point => {
-              return {lat: point.location.latitude, lng: point.location.longitude};
+              return { lat: point.location.latitude, lng: point.location.longitude };
             });
 
-            console.log("snappedPoints:", snappedPoints);
+            // console.log("snappedPoints:", snappedPoints);
 
             // let snappedLat = parsedData.snappedPoints[0].location.latitude;
             // let snappedLng = parsedData.snappedPoints[0].location.longitude;
