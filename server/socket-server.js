@@ -544,7 +544,8 @@ class SocketServer {
     // console.log("302. setDummyRidersCoordsInterval()");
 
     let counter = 0;
-    let time = Math.random() * 700;
+    // let time = Math.random() * 700;
+    let time = ( (+dummy.fauxSocketId + 1) % 5) * 150;
 
     dummy.intervalTimer = setInterval(() => {
       console.log("counter:", counter, ". steps.length:", steps.length);
@@ -560,7 +561,7 @@ class SocketServer {
       if ( !steps[++counter] ) {
         clearInterval(dummy.intervalTimer);
       }
-    }, 1300 + time);
+    }, 1600 + time);
   }
 
   simplifySteps(steps) {
