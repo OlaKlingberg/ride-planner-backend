@@ -28,8 +28,8 @@ const RiderService = {
       riderList.push(user);
     }
 
-    console.log("riderList:");
-    riderList.forEach(rider => console.log(rider.fname, rider.lname, rider.socketId, rider.position));
+    // console.log("riderList:");
+    // riderList.forEach(rider => console.log(rider.fname, rider.lname, rider.socketId, rider.position));
     return user;
   },
 

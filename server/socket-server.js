@@ -46,10 +46,10 @@ class SocketServer {
 
           return Promise.all([stepsPromise, dummyRidersPromise])
             .then(values => {
-              console.log("301. We have dummy riders, and we have steps!");
+              console.log("301. We have dummy riders, and we have steps! Number of steps:", values[0].length);
               steps = values[0];
               let dummies = values[1];
-              steps.forEach(step => console.log(step.end_location));
+              // steps.forEach(step => console.log(step.end_location));
 
               dummies.forEach(dummy => {
                 console.log(dummy.fname, dummy.lname);
@@ -190,6 +190,7 @@ class SocketServer {
   }
 
   distanceBetweenCoords(lat1, lng1, lat2, lng2) {
+    console.log("116. distanceBetweenCoords()", lat1, lng1, lat2, lng2);
     const earthRadius = 6371000;
 
     const dLat = this.degreesToRadians(lat2 - lat1);
@@ -201,6 +202,7 @@ class SocketServer {
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    console.log("dist:", earthRadius * c);
     return earthRadius * c;
   }
 
@@ -333,34 +335,40 @@ class SocketServer {
       });
   }
 
-  getIntermediateSteps(steps) {
-    let detailedSteps = [];
+  getSmallSteps(steps) {
+    console.log("114. getSmallSteps()");
+    console.log("steps:", steps);
+    let smallSteps = [steps[0]];
 
-    let counter = 0;
+    let stepsCounter = 1;
 
-    while ( counter < 100 ) {
-      if ( steps[counter + 1] ) {
-        let currentLat = dummy.position.coords.latitude;
-        let currentLng = dummy.position.coords.longitude;
-        let nextLat = steps[counter].end_location.lat;
-        let nextLng = steps[counter].end_location.lng;
+    for ( let i = 0; i < 99; i++ ) {
+      console.log("115. i:", i);
+      if ( steps[stepsCounter] ) {
+        let currentLat = smallSteps[i].lat;
+        let currentLng = smallSteps[i].lng;
+        let nextLat = steps[stepsCounter].lat;
+        let nextLng = steps[stepsCounter].lng;
+        console.log(currentLat, currentLng, nextLat, nextLng);
         let dist = this.distanceBetweenCoords(currentLat, currentLng, nextLat, nextLng);
-        console.log("dist:", dist);
+        console.log("117. dist:", dist);
         if ( dist < 30 ) {
-          position.coords.latitude = nextLat;
-          position.coords.longitude = nextLng;
-          counter++;
+          smallSteps.push({lat: nextLat, lng: nextLng});
+          stepsCounter++;
         } else {
           let divider = dist / 30;
           divider *= (.9 + Math.random() * .2);
-          position.coords.latitude = currentLat + (nextLat - currentLat) / divider;
-          position.coords.longitude = currentLng + (nextLng - currentLng) / divider;
+          smallSteps.push({
+            lat: currentLat + (nextLat - currentLat) / divider,
+            lng: currentLng + (nextLng - currentLng) / divider
+          });
         }
       }
     }
 
-    this.onUpdateUserPosition(io, dummy.fauxSocketId, position);
-    if ( !steps[counter] ) clearInterval(dummy.intervalTimer);
+    console.log("smallSteps.length:", smallSteps.length);
+
+    return smallSteps;
   }
 
   getSteps(steps, userLat, userLng) {
@@ -373,22 +381,29 @@ class SocketServer {
       }
       console.log("There are no steps yet!");
 
-      return this.snapToRoad(userLat, userLng)
-        .then(({snappedLat, snappedLng}) => {
-          console.log("103. Returned from snapToRoad()");
-          console.log("snappedLat:", snappedLat);
-          console.log("snappedLng:", snappedLng);
+      return this.snapToRoads([{lat: userLat, lng: userLng}])
+        .then(snappedPoints => {
+          console.log("103. Returned from snapToRoads()");
+          console.log("snappedLat:", snappedPoints[0].lat);
+          console.log("snappedLng:", snappedPoints[0].lng);
 
-          return this.setDestination(snappedLat, snappedLng)
-        }).then(({destLat, destLng}) => {
-        console.log("109. Returned from setDestination()");
+          return this.setDestination(snappedPoints[0].lat, snappedPoints[0].lng)
+        }).then(({ destLat, destLng }) => {
+          console.log("109. Returned from setDestination()");
           return this.getDirections(userLat, userLng, destLat, destLng);
         }).then(steps => {
           console.log("111. Returned from getDirections");
 
-          // this.getIntermediateSteps(steps);
+          let simplifiedSteps = this.simplifySteps(steps);
+          console.log("113. Returned from simplifySteps");
 
-          resolve(steps);
+          let smallSteps = this.getSmallSteps(simplifiedSteps);
+          console.log("118. We have small steps. smallSteps.length:", smallSteps.length);
+          return this.snapToRoads(smallSteps);
+        })
+        .then(snappedSmallSteps => {
+          console.log("119. snappedSmallSteps:", snappedSmallSteps);
+          resolve(snappedSmallSteps);
         })
         .catch(err => {
           console.log("Catch set directly on this.setDestination(). err:", err);
@@ -447,10 +462,10 @@ class SocketServer {
   }
 
   onUpdateUserPosition(io, socketId, position) {
-    console.log("onUpdateUserPosition. socketId:", socketId);
+    // console.log("onUpdateUserPosition. socketId:", socketId);
     let rider = RiderService.updateRiderPosition(socketId, position);
     if ( rider ) {
-      console.log("rider:", rider.fname, rider.lname, rider.ride, rider._id);
+      // console.log("rider:", rider.fname, rider.lname, rider.ride, rider._id);
       setTimeout(() => {
         io.in(rider.ride).emit('updatedRiderPosition', _.pick(rider, '_id', 'position'));
       }, 200);
@@ -463,12 +478,12 @@ class SocketServer {
     console.log("106. returned from generateRandomPosition", randomLat, randomLng);
 
     return this.findNearbyPlace(randomLat, randomLng)
-      .then(({placeLat, placeLng}) => {
-      console.log("108. Returned from findNearbyPlace()");
+      .then(({ placeLat, placeLng }) => {
+        console.log("108. Returned from findNearbyPlace()");
         let destLat = placeLat;
         let destLng = placeLng;
 
-        return {destLat, destLng};
+        return { destLat, destLng };
       })
       .catch(err => {
         console.log("setDestination.catch(). errorCount:", errorCount, err.message);
@@ -482,52 +497,58 @@ class SocketServer {
   }
 
   setDummyRidersCoordsInterval(io, dummy, steps) {
-    console.log("302. setDummyRidersCoordsInterval()");
-    console.log(dummy.fname, dummy.lname, dummy.fauxSocketId);
-
-    let position = {
-      coords: {
-        latitude: steps[0].start_location.lat,
-        longitude: steps[0].start_location.lng
-      }
-    };
-
-    this.onUpdateUserPosition(io, dummy.fauxSocketId, position);
+    // console.log("302. setDummyRidersCoordsInterval()");
 
     let counter = 0;
-    let time = Math.random() * 1000;
+    let time = Math.random() * 500;
 
     dummy.intervalTimer = setInterval(() => {
+      console.log("counter:", counter, ". steps.length:", steps.length);
 
-      if ( steps[counter + 1] ) {
-        let currentLat = dummy.position.coords.latitude;
-        let currentLng = dummy.position.coords.longitude;
-        let nextLat = steps[counter].end_location.lat;
-        let nextLng = steps[counter].end_location.lng;
-        let dist = this.distanceBetweenCoords(currentLat, currentLng, nextLat, nextLng);
-        console.log("dist:", dist);
-        if ( dist < 30 ) {
-          position.coords.latitude = nextLat;
-          position.coords.longitude = nextLng;
-          counter++;
-        } else {
-          let divider = dist / 30;
-          divider *= (.9 + Math.random() * .2);
-          position.coords.latitude = currentLat + (nextLat - currentLat) / divider;
-          position.coords.longitude = currentLng + (nextLng - currentLng) / divider;
+      let position = {
+        coords: {
+          latitude: steps[counter].lat,
+          longitude: steps[counter].lng
         }
-      }
+      };
 
       this.onUpdateUserPosition(io, dummy.fauxSocketId, position);
-      if ( !steps[counter] ) clearInterval(dummy.intervalTimer);
-    }, 1000 + time);
+      if ( !steps[++counter] ) clearInterval(dummy.intervalTimer);
+    }, 500 + time);
   }
 
-  snapToRoad(lat, lng) {
-    console.log("102. snapToRoad()");
+  simplifySteps(steps) {
+    console.log("112. simplifySteps()");
+    let simplifiedSteps = [{
+      lat: steps[0].start_location.lat,
+      lng: steps[0].start_location.lng
+    }];
+
+    steps.forEach(step => {
+      simplifiedSteps.push({
+        lat: step.end_location.lat,
+        lng: step.end_location.lng
+      })
+    });
+
+    // console.log("simplifiedSteps:");
+    // console.log(simplifiedSteps);
+    return simplifiedSteps;
+  }
+
+  snapToRoads(points) {
+    console.log("102. snapToRoads()");
+
+    points = points.map(point => {
+      return `${point.lat},${point.lng}`;
+    });
+    let path = points.join('|');
+    console.log("path:", path);
+
+
     return new Promise((resolve, reject) => {
 
-      https.get(`https://roads.googleapis.com/v1/snapToRoads?path=${lat},${lng}&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
+      https.get(`https://roads.googleapis.com/v1/snapToRoads?path=${path}&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
         const statusCode = res.statusCode;
         const contentType = res.headers['content-type'];
 
@@ -553,10 +574,18 @@ class SocketServer {
         res.on('end', () => {
           try {
             const parsedData = JSON.parse(rawData);
-            let snappedLat = parsedData.snappedPoints[0].location.latitude;
-            let snappedLng = parsedData.snappedPoints[0].location.longitude;
 
-            resolve({snappedLat, snappedLng});
+            let snappedPoints = parsedData.snappedPoints.map(point => {
+              return {lat: point.location.latitude, lng: point.location.longitude};
+            });
+
+            console.log("snappedPoints:", snappedPoints);
+
+            // let snappedLat = parsedData.snappedPoints[0].location.latitude;
+            // let snappedLng = parsedData.snappedPoints[0].location.longitude;
+
+            // resolve({ snappedLat, snappedLng });
+            resolve(snappedPoints);
           } catch ( e ) {
             console.log(e.message);
             reject(e);
