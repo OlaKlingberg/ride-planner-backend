@@ -147,7 +147,6 @@ describe('DELETE /cuesheets/:id', () => {
       .set('x-auth', users[1].tokens[0].token)
       .expect(200)
       .expect(res => {
-        console.log("cues that should have been deleted:", res.body.cuesheet.cues);
         expect(res.body.cuesheet._id).toBe(hexId);
       })
       .end((err, res) => {
@@ -254,8 +253,6 @@ describe('POST /cuesheets/cues', () => {
 describe('DELETE /cuesheets/:cuesheetId/cues/:cueId', () => {
   const cuesheetHexId = cuesheets[0]._id.toHexString();
   const cueHexId = cues[0]._id.toHexString();
-  console.log("cuesheetHexId:", cuesheetHexId);
-  console.log("cueHexId:", cueHexId);
 
   it('should delete a cue and delete the reference from the cuesheet XXX', done => {
     request(app)
@@ -272,7 +269,6 @@ describe('DELETE /cuesheets/:cuesheetId/cues/:cueId', () => {
         }
 
         Cuesheet.findById(cuesheetHexId).then(cuesheet => {
-          // console.log("cuesheet, from which one cue should have been deleted:", cuesheet);
           expect(cuesheet.cues.length).toBe(1);
           expect(cuesheet.cues[0].toHexString()).toNotBe(cueHexId);
 

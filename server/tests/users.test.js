@@ -146,7 +146,6 @@ describe('DELETE /users/logout', () => {
       .set('x-auth', users[0].tokens[0].token)
       .expect(200)
       .end((err, res) => {
-      // console.log("err:", err);
         if ( err ) done(err);
 
         User.findById(users[0]._id).then(user => {

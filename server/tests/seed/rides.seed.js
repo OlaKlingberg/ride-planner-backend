@@ -1,5 +1,4 @@
 const { ObjectID } = require('mongodb');
-// const jwt = require('jsonwebtoken');
 
 const { Ride } = require('./../../models/ride');
 

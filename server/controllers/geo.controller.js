@@ -13,7 +13,7 @@ router.use(bodyParser.json());
 
 // Routes
 router.get('/legs/:lat1/:lng1/:lat2/:lng2', authenticate, getLegs);
-router.get('/place/:lat/:lng', authenticate, getPlace)
+router.get('/place/:lat/:lng', authenticate, getPlace);
 
 // Route handlers
 function getLegs(req, res) {
@@ -45,7 +45,6 @@ function getLegs(req, res) {
     googleRes.on('end', () => {
       try {
         const parsedData = JSON.parse(rawData);
-        // res.send({legs: parsedData.routes[0].legs[0].steps})
         res.send({data: parsedData})
       } catch ( e ) {
         console.log(e.message);
@@ -83,7 +82,6 @@ function getPlace(req, res) {
     googleRes.on('end', () => {
       try {
         const parsedData = JSON.parse(rawData);
-        // res.send({legs: parsedData.routes[0].legs[0].steps})
         res.send({data: parsedData})
       } catch ( e ) {
         console.log(e.message);

@@ -1,8 +1,5 @@
 const mongoose = require('mongoose');
-const validator = require('validator');
-// const jwt = require('jsonwebtoken');
 const _ = require('lodash');
-// const bcrypt = require('bcryptjs');
 
 let RideSchema = new mongoose.Schema({
   name: {
@@ -22,16 +19,12 @@ let RideSchema = new mongoose.Schema({
   timestamps: true
 });
 
-
-
 RideSchema.statics.getRides = function () {
   const Ride = this;
 
   return Ride.find({});
 };
 
-
-// const Ride = mongoose.model('Ride', RideSchema);
 const Ride = mongoose.model('Ride', RideSchema);
 
 module.exports = { Ride };

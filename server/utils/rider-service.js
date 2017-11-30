@@ -15,12 +15,6 @@ const RiderService = {
       // Todo: Figure out: Why do I do exactly this, and only under those circumstances?
       riderList[idx].socketId = user.socketId;
       riderList[idx].disconnected = null;
-
-      // riderList[idx].position.timestamp = user.position.timestamp;
-      // riderList[idx].position.coords.accuracy = user.position.coords.accuracy;
-      // riderList[idx].position.coords.latitude = user.position.coords.latitude;
-      // riderList[idx].position.coords.longitude = user.position.coords.longitude;
-
       riderList[idx].position = JSON.parse(JSON.stringify(user.position));
     } else {
       riderList = riderList.filter(rider => rider._id !== user._id);
@@ -69,11 +63,6 @@ const RiderService = {
     let idx = _.findIndex(riderList, rider => rider.socketId === socketId);
 
     if ( idx >= 0 ) {
-      // riderList[idx].position.timestamp = position.timestamp;
-      // riderList[idx].position.coords.accuracy = position.coords.accuracy;
-      // riderList[idx].position.coords.latitude = position.coords.latitude;
-      // riderList[idx].position.coords.longitude = position.coords.longitude;
-
       riderList[idx].position = JSON.parse(JSON.stringify(position));
 
       return riderList[idx];
@@ -81,7 +70,6 @@ const RiderService = {
 
     return null;
   }
-
 };
 
 Object.freeze(RiderService);

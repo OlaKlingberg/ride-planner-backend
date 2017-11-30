@@ -3,7 +3,6 @@ connectedLoggedInUsers = [];
 const UserService = {
   addConnectedLoggedInUser: (email, socketId) => {
     connectedLoggedInUsers.push({email, socketId});
-    // console.log(connectedLoggedInUsers);
   },
 
   getConnectedLoggedInUsers: () => {
@@ -11,7 +10,6 @@ const UserService = {
   },
 
   isUserAlreadyLoggedInAndConnected: (email) => {
-    // console.log("isUserAlreadyLoggedInAndConnected:", connectedLoggedInUsers.filter(user => user.email === email).length >= 1);
     return connectedLoggedInUsers.filter(user => user.email === email).length >= 1;
   },
 
@@ -19,7 +17,6 @@ const UserService = {
     connectedLoggedInUsers = connectedLoggedInUsers.filter(user => {
       return user.socketId !== socketId;
     });
-    // console.log(connectedLoggedInUsers);
   }
 
 };

@@ -12,16 +12,12 @@ let dummyRiders = []; // Todo: Move this to rider-service, for the sake of consi
 /**
  * Todo: This file contains a lot of code that only pertains to the demo use of the app. It would be nice if I could
  * separate that code from that which pertains to live use.
- *
- * Todo: I pass socket, io, and other stuff from function to function. Wouldn't it be better to set these variables
- * globally in the file instead?
  */
 
 class SocketServer {
 
   startSocketServer(io) {
     io.on('connection', (socket) => {
-      console.log("connection. socket.id:", socket.id, new Date().toString());
       let abortDummyRiders = false;
       let steps = [];
 
@@ -109,7 +105,6 @@ class SocketServer {
 
       // giveMeAvailableRides
       socket.on('giveMeAvailableRides', () => {
-        console.log("socket.on('giveMeAvailableRides')");
 
         // Todo: I could use a callback instead of emitting this!
         Ride.getRides().then(rides => {
@@ -154,10 +149,8 @@ class SocketServer {
 
       // removeDummyRiders
       socket.on('removeDummyRiders', ride => {
-        console.log('removeDummyRiders');
         abortDummyRiders = true;
         steps = [];
-        dummyRiders = [];
 
         dummyRiders.forEach(dummy => {
           let rider = RiderService.getRider(dummy.fauxSocketId);
@@ -167,6 +160,7 @@ class SocketServer {
             clearInterval(dummy.intervalTimer);
           }, 200);
         });
+        dummyRiders = [];
 
         socket.leave(ride);
       });
@@ -178,14 +172,11 @@ class SocketServer {
 
       // disconnect
       socket.on('disconnect', () => {
-        console.log("disconnect:", socket.id);
-
         UserService.removeConnectedLoggedInUser(socket.id);
 
         let rider = RiderService.getRider(socket.id);
 
         if ( rider ) {
-          console.log('Disconnected rider:', rider.fname, rider.lname);
           RiderService.markAsDisconnected(rider);
           socket.leave(rider.ride);
           // Delay, to minimize the risk that riderList and disconnectedRider are received in the wrong order.
@@ -198,16 +189,13 @@ class SocketServer {
   }
 
   addDummyRiders() {
-    console.log("205. addDummyRiders()");
     return User.getDummyUsers(dummyRiders.length, 5)
       .then(dummies => {
-        console.log(`206. Just created dummyRiders`);
         return dummies;
       });
   }
 
   checkSupplyOfDummyMembers() {
-    console.log("202. checkSupplyOfDummyMembers()");
     return User.count({ dummy: true });
   }
 
@@ -227,7 +215,6 @@ class SocketServer {
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    console.log("dist:", earthRadius * c);
     return earthRadius * c;
   }
 

@@ -119,9 +119,6 @@ UserSchema.methods.generateAuthToken = function () {
   const access = 'auth';
   const token = jwt.sign({ _id: user._id.toHexString() }, process.env.JWT_SECRET);
 
-  // user.tokens.push({ access, token });  // Allows user to be logged in on several devices at once.
-  // if ( user.tokens.length > 2 ) user.tokens.shift();  // You can only be logged in on two devices at a time.
-
   user.tokens = [{ access, token }]; // Todo: Is this okay, or will the copying by reference cause any problem?
 
   return user.save()
@@ -140,9 +137,7 @@ UserSchema.methods.removeToken = function (token) {
   });
 };
 
-
 UserSchema.statics.addDummyMembers = function (creatorEmail) {
-  console.log("addDummyMembers");
   const User = this;
   let users = [];
 
@@ -165,7 +160,6 @@ UserSchema.statics.addDummyMembers = function (creatorEmail) {
     users.push(user);
   }
 
-  console.log("About to insert 20 dummy members in the db.");
   return User.create(users);
 };
 

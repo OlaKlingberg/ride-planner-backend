@@ -3,25 +3,15 @@ require('../config/config');
 const _ = require('lodash');
 const express = require('express');
 const bodyParser = require('body-parser');
-const expressJwt = require('express-jwt');
 const { authenticate } = require("../middleware/authenticate");
 
 const { mongoose } = require('../db/mongoose'); // So that mongoose.Promise is set to global.Promise.
 const { User } = require('../models/user');
 const { UserService } = require('../utils/user-service');
 
-// const faker = require('faker');
-
 const router = express.Router();
 
-// const { RiderService } = require('../utils/rider-service');
-// const { UserService } = require('../utils/user-service');
-
 let dummyMembersTimer;
-
-
-// Use JWT auth to secure the api
-// const authenticateWithJwt = expressJwt({ secret: process.env.JWT_SECRET });
 
 router.use(bodyParser.json());
 
@@ -62,9 +52,6 @@ function registerNewUser(req, res) {
 }
 
 function login(req, res) {
-  // console.log("ConnectedLoggedInUsers:", UserService.getConnectedLoggedInUsers());
-  // console.log("req.host:", req.host);
-
   if ( UserService.isUserAlreadyLoggedInAndConnected(req.body.email) ) return res.status(401).send("You are already logged in on another device. Log out or close the browser window on that device before logging in here.");
 
   User.findByCredentials(req.body.email, req.body.password)
@@ -83,13 +70,10 @@ function login(req, res) {
 }
 
 function authenticateByToken(req, res) {
-  // console.log("authenticateByToken");
   res.status(200).send(req.user);
 }
 
 function logout(req, res) {
-  // console.log("UsersController.logout");
-  // console.log(req.token);
   req.user.removeToken(req.token).then(() => {
     res.status(200).send();
   }, () => {

@@ -4,7 +4,6 @@ const { ObjectID } = require('mongodb');
 const _ = require('lodash');
 const express = require('express');
 const bodyParser = require('body-parser');
-const expressJwt = require('express-jwt');
 const { authenticate } = require("../middleware/authenticate");
 
 const { mongoose } = require('../db/mongoose'); // So that mongoose.Promise is set to global.Promise.
@@ -12,9 +11,6 @@ const { Cuesheet } = require('../models/cuesheet');
 const { Cue } = require('../models/cue');
 
 const router = express.Router();
-
-// Use JWT auth to secure the api
-// const authenticateWithJwt = expressJwt({ secret: process.env.JWT_SECRET });
 
 router.use(bodyParser.json());
 
@@ -30,13 +26,6 @@ router.delete('/:cuesheetId/cues/:cueId', authenticate, deleteCue);
 
 // Route handlers
 function getAllCuesheets(req, res) {
-  // Cuesheet.find({})
-  //   .then(cuesheets => {
-  //     res.send({ cuesheets });
-  //   }, (e) => {
-  //     res.status(400).send(e);
-  //   });
-
   Cuesheet.find({})
     .populate('_creator', ['fname', 'lname'])
     .exec((err, cuesheets) => {
@@ -46,8 +35,6 @@ function getAllCuesheets(req, res) {
 }
 
 function createCuesheet(req, res) {
-  console.log("req.body:", req.body);
-
   const body = _.pick(req.body, ['name', 'description', '_creator']);
   const cuesheet = new Cuesheet(body);
 

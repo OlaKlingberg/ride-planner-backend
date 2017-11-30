@@ -1,9 +1,5 @@
 const mongoose = require('mongoose');
-const validator = require('validator');
-// const jwt = require('jsonwebtoken');
 const _ = require('lodash');
-// const bcrypt = require('bcryptjs');
-// const cueSchema = require('./cue');
 
 let CuesheetSchema = new mongoose.Schema({
   name: {
