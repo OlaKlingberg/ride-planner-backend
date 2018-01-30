@@ -41,16 +41,20 @@ class SocketServer {
 
           let stepsPromise = new Promise((resolve, reject) => {
             if ( steps.length > 0 ) {
+              socket.emit('debugging', 'About to resolve stepsPromise at place 1');
               resolve(steps);
             } else {
               this.getSteps(userLat, userLng)
                 .then(setOfSteps => {
+                  socket.emit('debugging', 'stepsPromise. steps gotten 1.');
                   steps.push(...setOfSteps);
                   let lastStep = steps[steps.length - 1];
                   return this.getSteps(lastStep.lat, lastStep.lng)
                 })
                 .then(setOfSteps => {
+                  socket.emit('debugging', 'stepsPromise. steps gotten 2.');
                   steps.push(...setOfSteps);
+                  socket.emit('debugging', 'About to resolve stepsPromise at place 2');
                   resolve(steps);
                 });
             }
@@ -59,6 +63,7 @@ class SocketServer {
           let dummyRidersPromise = new Promise((resolve, reject) => {
             this.getDummyRiders()
               .then(dummies => {
+                socket.emit('debugging', 'dummyRiders gotten.');
                 dummies.forEach(dummy => {
                   dummy.fauxSocketId = dummyRiders.length;
                   dummy.position = {
@@ -72,14 +77,14 @@ class SocketServer {
                   dummyRiders.push(dummy);
                 });
 
+                socket.emit('debugging', 'About to resolve dummyRidersPromise');
                 resolve(dummies);
               });
           });
 
           return Promise.all([stepsPromise, dummyRidersPromise])
             .then(values => {
-              console.log("Both promises fulfilled.");
-              socket.emit('debugging', 'addDummyRiders. both promised fulfilled');
+              socket.emit('debugging', 'addDummyRiders. both promises fulfilled');
               if ( abortDummyRiders ) return;
 
               steps = values[0];
@@ -111,9 +116,7 @@ class SocketServer {
 
         // Todo: I could use a callback instead of emitting this!
         Ride.getRides().then(rides => {
-          console.log("About to emit availableRides");
           socket.emit('availableRides', rides);
-          socket.emit('debugging', 'About to emit availableRides');
         });
       });
 
