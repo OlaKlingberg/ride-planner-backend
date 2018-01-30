@@ -30,8 +30,10 @@ class SocketServer {
 
       // addDummyRiders
       socket.on('addDummyRiders', (user, token, callback) => {
+        socket.emit('debugging', 'addDummyRiders');
         // Verify that there is a user with that token. // Todo: Is that enough verification?
         User.findByToken(token).then(() => {
+          socket.emit('debugging', 'addDummyRiders. token found');
           abortDummyRiders = false;
 
           let userLat = user.position.coords.latitude;
@@ -70,13 +72,14 @@ class SocketServer {
                   dummyRiders.push(dummy);
                 });
 
-
                 resolve(dummies);
               });
           });
 
           return Promise.all([stepsPromise, dummyRidersPromise])
             .then(values => {
+              console.log("Both promises fulfilled.");
+              socket.emit('debugging', 'addDummyRiders. both promised fulfilled');
               if ( abortDummyRiders ) return;
 
               steps = values[0];
@@ -108,7 +111,9 @@ class SocketServer {
 
         // Todo: I could use a callback instead of emitting this!
         Ride.getRides().then(rides => {
+          console.log("About to emit availableRides");
           socket.emit('availableRides', rides);
+          socket.emit('debugging', 'About to emit availableRides');
         });
       });
 
@@ -189,6 +194,7 @@ class SocketServer {
   }
 
   addDummyRiders() {
+    console.log("addDummyRiders()");
     return User.getDummyUsers(dummyRiders.length, 5)
       .then(dummies => {
         return dummies;
