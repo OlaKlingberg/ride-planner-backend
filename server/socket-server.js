@@ -63,7 +63,7 @@ class SocketServer {
           let dummyRidersPromise = new Promise((resolve, reject) => {
             this.getDummyRiders()
               .then(dummies => {
-                socket.emit('debugging', '100. dummyRiders gotten.');
+                socket.emit('debugging', '100. dummyRiders gotten No: ' + dummies.length);
                 socket.emit('debugging', '101. Number of dummyRiders: ' + dummies.length);
                 dummies.forEach(dummy => {
                   dummy.fauxSocketId = dummyRiders.length;
