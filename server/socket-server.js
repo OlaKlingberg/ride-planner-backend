@@ -17,7 +17,7 @@ let dummyRiders = []; // Todo: Move this to rider-service, for the sake of consi
 class SocketServer {
 
   startSocketServer(io) {
-    io.on('connection', (socket) => {
+    io.on('connection', socket => {
       let abortDummyRiders = false;
       let steps = [];
 
@@ -61,10 +61,10 @@ class SocketServer {
           });
 
           let dummyRidersPromise = new Promise((resolve, reject) => {
-            this.getDummyRiders()
+            this.getDummyRiders(socket)
               .then(dummies => {
-                socket.emit('debugging', '100. dummyRiders gotten No: ' + dummies.length);
-                socket.emit('debugging', '101. Number of dummyRiders: ' + dummies.length);
+                socket.emit('debugging', '100. dummyRiders gotten.');
+                if (dummies.length) socket.emit('debugging', '101. Number of dummyRiders: ' + dummies.length);
                 dummies.forEach(dummy => {
                   dummy.fauxSocketId = dummyRiders.length;
                   dummy.position = {
@@ -74,7 +74,7 @@ class SocketServer {
                     }
                   };
 
-                  socket.emit('debugging', '102. About to call onJoineRide.');
+                  socket.emit('debugging', '102. About to call onJoinedRide.');
                   this.onJoinedRide(io, socket, dummy, user.ride, dummy.fauxSocketId);
                   dummyRiders.push(dummy);
                 });
@@ -206,7 +206,8 @@ class SocketServer {
       });
   }
 
-  checkSupplyOfDummyMembers() {
+  checkSupplyOfDummyMembers(socket) {
+    socket.emit('debugging', '300. Just entered checkSupplyOfDummyMembers');
     return User.count({ dummy: true });
   }
 
@@ -327,15 +328,18 @@ class SocketServer {
     });
   }
 
-  getDummyRiders() {
-    return this.checkSupplyOfDummyMembers()
+  getDummyRiders(socket) {
+    socket.emit('debugging', '200. Just entered getDummyRiders');
+    return this.checkSupplyOfDummyMembers(socket)
       .then(count => {
         if ( count - dummyRiders.length < 5 ) {
           return User.addDummyMembers(user.email)
             .then(() => {
+              socket.emit('debugging', '201. About to return this.addDummyRiders()');
               return this.addDummyRiders();
             });
         } else {
+          socket.emit('debugging', '202. About to return this.addDummyRiders()');
           return this.addDummyRiders();
         }
       })
