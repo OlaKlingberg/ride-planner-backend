@@ -63,7 +63,8 @@ class SocketServer {
           let dummyRidersPromise = new Promise((resolve, reject) => {
             this.getDummyRiders()
               .then(dummies => {
-                socket.emit('debugging', 'dummyRiders gotten.');
+                socket.emit('debugging', '100. dummyRiders gotten.');
+                socket.emit('debugging', '101. Number of dummyRiders: ' + dummies.length);
                 dummies.forEach(dummy => {
                   dummy.fauxSocketId = dummyRiders.length;
                   dummy.position = {
@@ -73,11 +74,12 @@ class SocketServer {
                     }
                   };
 
+                  socket.emit('debugging', '102. About to call onJoineRide.');
                   this.onJoinedRide(io, socket, dummy, user.ride, dummy.fauxSocketId);
                   dummyRiders.push(dummy);
                 });
 
-                socket.emit('debugging', 'About to resolve dummyRidersPromise');
+                socket.emit('debugging', '103. About to resolve dummyRidersPromise');
                 resolve(dummies);
               });
           });
