@@ -208,6 +208,11 @@ class SocketServer {
 
   checkSupplyOfDummyMembers(socket) {
     socket.emit('debugging', '300. Just entered checkSupplyOfDummyMembers');
+    // socket.emit('debugging', User.count({ dummy: true }));
+    // console.log("User.count:");
+    // console.log(User.count({ dummy: true }));
+
+
     return User.count({ dummy: true });
   }
 
@@ -332,6 +337,8 @@ class SocketServer {
     socket.emit('debugging', '200. Just entered getDummyRiders');
     return this.checkSupplyOfDummyMembers(socket)
       .then(count => {
+        socket.emit('debugging', 'count: ' + count);
+        socket.emit('debugging', 'dummyRiders.length: ' + dummyRiders.length);
         if ( count - dummyRiders.length < 5 ) {
           return User.addDummyMembers(user.email)
             .then(() => {
