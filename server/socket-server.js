@@ -95,7 +95,7 @@ class SocketServer {
                 // Delay, to lessen the risk that socket messages will arrive in the wrong order.
                 setTimeout(() => {
                   this.setDummyRidersCoordsInterval(io, dummy, steps);
-                }, 200);
+                }, 1000);
               });
 
 
