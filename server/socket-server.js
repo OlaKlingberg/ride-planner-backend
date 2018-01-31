@@ -61,7 +61,7 @@ class SocketServer {
           });
 
           let dummyRidersPromise = new Promise((resolve, reject) => {
-            this.getDummyRiders(socket)
+            this.getDummyRiders(socket, user)
               .then(dummies => {
                 socket.emit('debugging', '100. dummyRiders gotten.');
                 if (dummies.length) socket.emit('debugging', '101. Number of dummyRiders: ' + dummies.length);
@@ -95,7 +95,7 @@ class SocketServer {
                 // Delay, to lessen the risk that socket messages will arrive in the wrong order.
                 setTimeout(() => {
                   this.setDummyRidersCoordsInterval(io, dummy, steps);
-                }, 1000);
+                }, 200); // This might have caused problems when I had it set to only 200.
               });
 
 
@@ -333,7 +333,7 @@ class SocketServer {
     });
   }
 
-  getDummyRiders(socket) {
+  getDummyRiders(socket, user) {
     socket.emit('debugging', '200. Just entered getDummyRiders');
     return this.checkSupplyOfDummyMembers(socket)
       .then(count => {
