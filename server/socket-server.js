@@ -340,7 +340,7 @@ class SocketServer {
         socket.emit('debugging', 'count: ' + count);
         socket.emit('debugging', 'dummyRiders.length: ' + dummyRiders.length);
         if ( count - dummyRiders.length < 5 ) {
-          return User.addDummyMembers(user.email)
+          return User.addDummyMembers(user)
             .then(() => {
               socket.emit('debugging', '201. About to return this.addDummyRiders()');
               return this.addDummyRiders();
@@ -506,6 +506,7 @@ class SocketServer {
   }
 
   snapToRoads(points) {
+    console.log("snapToRoads()");
     points = points.map(point => {
       return `${point.lat},${point.lng}`;
     });
@@ -514,6 +515,7 @@ class SocketServer {
     return new Promise((resolve, reject) => {
 
       https.get(`https://roads.googleapis.com/v1/snapToRoads?path=${path}&key=${process.env.GOOGLE_MAPS_KEY}`, (res) => {
+        console.log("This is the callback sent to the snapToRoadsAPI");
         const statusCode = res.statusCode;
         const contentType = res.headers['content-type'];
 

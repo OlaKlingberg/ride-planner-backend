@@ -9,6 +9,7 @@ const { authenticate } = require("../middleware/authenticate");
 const { mongoose } = require('../db/mongoose'); // So that mongoose.Promise is set to global.Promise.
 const { Cuesheet } = require('../models/cuesheet');
 const { Cue } = require('../models/cue');
+const { User } = require('../models/user');
 
 const router = express.Router();
 
@@ -67,38 +68,54 @@ function getCuesheet(req, res) {
 }
 
 function updateCuesheet(req, res) {
-  const _id = req.params._id;
+  const user = req.user;
+  const cuesheetId = req.params._id;
   const body = _.pick(req.body, ['name', 'description']);
 
-  if ( !ObjectID.isValid(_id) ) return res.status(400).send();
+  if ( !ObjectID.isValid(cuesheetId) ) return res.status(404).send();
 
-  Cuesheet.findOneAndUpdate({ _id }, { $set: body }, { new: true })
+  Cuesheet.findOne({ _id: cuesheetId })
     .then(cuesheet => {
-      if ( !cuesheet ) return res.status(404).send();
+      let userIsSuperAdmin = user.email === process.env.SUPER_ADMIN;
 
-      res.send({ cuesheet });
-    }).catch(e => {
-    res.status(400).send();
-  });
+      if ( userIsSuperAdmin || user.admin || user.leader || user._id.toString() === cuesheet._creator.toString() ) {
+        cuesheet.update({ $set: body }, { new: true })
+          .then(cuesheet => {
+            if ( !cuesheet ) return res.status(404).send();
+            res.send({ cuesheet })
+          })
+          .catch(err => res.status(400).send(err));
+      } else {
+        res.status(401).send();
+      }
+
+    });
 }
 
 function deleteCuesheet(req, res) {
-  const _id = req.params._id;
+  const user = req.user;
+  const cuesheetId = req.params._id;
 
-  if ( !ObjectID.isValid(_id) ) res.status(404).send();
+  if ( !ObjectID.isValid(cuesheetId) ) res.status(404).send();
 
-  Cuesheet.findOneAndRemove({ _id })
+  Cuesheet.findOne({ _id: cuesheetId })
     .then(cuesheet => {
-      if ( !cuesheet ) res.status(404).send();
+      let userIsSuperAdmin = user.email === process.env.SUPER_ADMIN;
 
-      // Delete the cues belonging to the cuesheet.
-      Cue.remove({ _id: { $in: cuesheet.cues } }, () => {
-        return res.send({ cuesheet });
-      });
+      if ( userIsSuperAdmin || user.admin || user.leader || user._id.toString() === cuesheet._creator.toString() ) {
+        cuesheet.remove()
+          .then(cuesheet => {
+            if ( !cuesheet ) return res.status(404).send();
 
-    }).catch(err => {
-    res.status(400).send(err);
-  });
+            Cue.remove({ _id: { $in: cuesheet.cues } }, () => {
+              return res.send({ cuesheet });
+            });
+          })
+          .catch(err => res.status(400).send(err));
+      } else {
+        res.status(401).send();
+      }
+    });
 }
 
 function createCue(req, res) {
@@ -106,73 +123,94 @@ function createCue(req, res) {
   const cuesheetId = body.cuesheetId;
   const cue = body.cue;
   const insertBeforeId = body.insertBeforeId;
+  const user = req.user;
+  cue._creator = user._id;
+  console.log("cue:", cue);
 
   if ( !ObjectID.isValid(cuesheetId) ) return res.status(400).send();
 
-  Cue.create(cue)
-    .then(cue => {
-      Cuesheet.findById(cuesheetId)
-        .then(cuesheet => {
-          if ( insertBeforeId ) {
-            let idx = _.findIndex(cuesheet.cues, _id => {
-              return _id.toString() === insertBeforeId
-            });
-            cuesheet.cues.splice(idx, 0, cue._id);
-          } else {
-            cuesheet.cues.push(cue._id);
-          }
-          return cuesheet.save();
-        })
-        .then(() => {
-          return res.send(cue);
-        })
-        .catch(e => console.log(e));
+  Cuesheet.findOne({ _id: cuesheetId })
+    .then(cuesheet => {
+      let userIsSuperAdmin = user.email === process.env.SUPER_ADMIN;
+
+      if ( userIsSuperAdmin || user.admin || user.leader || user._id.toString() === cuesheet._creator.toString() ) {
+        Cue.create(cue)
+          .then(cue => {
+            if ( insertBeforeId ) {
+              let idx = _.findIndex(cuesheet.cues, _id => {
+                return _id.toString() === insertBeforeId
+              });
+              cuesheet.cues.splice(idx, 0, cue._id);
+            } else {
+              cuesheet.cues.push(cue._id);
+            }
+            return cuesheet.save();
+          })
+          .then(() => {
+            return res.send(cue);
+          })
+          .catch(err => res.status(400).send(err));
+      } else {
+        res.status(403).send();
+      }
     });
 }
 
 function updateCue(req, res) {
-  const _id = req.params._id;
+  const cueId = req.params._id;
   const cue = _.pick(req.body, ['distance', 'turn', 'description']);
+  const user = req.user;
 
-  if ( !ObjectID.isValid(_id) ) return res.status(404).send();
+  if ( !ObjectID.isValid(cueId) ) return res.status(404).send();
 
-  Cue.findOneAndUpdate({ _id }, { $set: cue }, { new: true }).then(cue => {
-    if ( !cue ) {
-      return res.status(404).send();
-    }
+  const userIsSuperAdmin = user.email === process.env.SUPER_ADMIN;
 
-    return res.send(cue);
-  }).catch(e => res.status(400).send());
+  if ( userIsSuperAdmin || user.admin || user.leader || !cue._creator || user._id.toString() === cue._creator.toString() ) {
+    Cue.findOneAndUpdate({ _id: cueId }, { $set: cue }, { new: true }).then(cue => {
+      if ( !cue ) return res.status(404).send();
+
+      return res.send(cue);
+    }).catch(err => res.status(400).send(err));
+  } else {
+    res.status(403).send();
+  }
 }
 
 // Todo: Is there any way of getting rid of this multi-level nesting?
 function deleteCue(req, res) {
   const cuesheetId = req.params.cuesheetId;
   const cueId = req.params.cueId;
+  const user = req.user;
 
   if ( !ObjectID.isValid(cuesheetId) || !ObjectID.isValid(cueId) ) return res.status(404).send();
 
   Cuesheet.findById(cuesheetId, (err, cuesheet) => {
     if ( !cuesheet ) return res.status(404).send();
-    cuesheet.cues = _.filter(cuesheet.cues, cue => {
-      return cue.toString() !== cueId;
-    });
 
-    cuesheet.save((err, updatedCuesheet) => {
-      if ( err ) console.log(err);
+    const userIsSuperAdmin = user.email === process.env.SUPER_ADMIN;
+    const userIsCuesheetCreator = user._id.toString() === cuesheet._creator.toString();
 
-      Cue.findByIdAndRemove(cueId)
-        .then(cue => {
-          if ( !cue ) {
-            return res.status(404).send();
-          }
-          res.send({ cue });
-        }).catch(e => {
-        res.status(400).send();
+    if ( userIsSuperAdmin || user.admin || user.leader || userIsCuesheetCreator ) {
+      cuesheet.cues = _.filter(cuesheet.cues, cue => {
+        return cue.toString() !== cueId;
       });
 
-    });
+      cuesheet.save((err, updatedCuesheet) => {
+        if ( err ) console.log(err);
 
+        Cue.findByIdAndRemove(cueId)
+          .then(cue => {
+            if ( !cue ) {
+              return res.status(404).send();
+            }
+            res.send({ cue });
+          }).catch(err => {
+          res.status(400).send(err);
+        });
+      });
+    } else {
+      res.status(403).send();
+    }
   });
 }
 

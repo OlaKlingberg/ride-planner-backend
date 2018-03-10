@@ -14,6 +14,11 @@ let CueSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  _creator: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    ref: 'User'
+  },
   comment: {
     type: String,
     required: false

@@ -1,4 +1,5 @@
 require('../config/config');
+const { ObjectID } = require('mongodb');
 
 const _ = require('lodash');
 const express = require('express');
@@ -24,7 +25,8 @@ router.get('/logout', authenticate, logout);
 router.get('/add-dummy-members', authenticate, addDummyMembers);
 router.get('/delete-dummy-members', authenticate, deleteDummyMembers);
 router.get('/demo-users', getUnusedDemoUsers);
-
+router.get('/:_id', authenticate, getUser);
+router.patch('/update', authenticate, updateMember);
 
 // Route handlers
 function getAllUsers(req, res) {
@@ -37,6 +39,7 @@ function getAllUsers(req, res) {
       res.status(400).send(e);
     });
 }
+
 
 function registerNewUser(req, res) {
   const body = _.pick(req.body, ['fname', 'lname', 'phone', 'email', 'password', 'emergencyName', 'emergencyPhone']);
@@ -130,6 +133,58 @@ function getUnusedDemoUsers(req, res) {
       console.log(e);
       res.status(400).send(e);
     });
+}
+
+function getUser(req, res) {
+  const _id = req.params._id;
+
+  User.findOne({ _id })
+    .then(user => {
+      res.send({ user });
+    })
+    .catch(err => {
+      res.status(400).send(err);
+    });
+}
+
+function updateMember(req, res) {
+  const userId = req.user._id;
+  if ( !ObjectID.isValid(userId) ) return res.status(404).send();
+
+  let member = _.pick(req.body, ['_id', 'admin', 'leader', 'fname', 'lname', 'email', 'phone', 'emergencyName', 'emergencyPhone']);
+
+  User.findOne({ _id: userId })
+    .then(user => {
+
+      // If the user is not the superAdmin, then the user can not change the member's admin status.
+      if (user.email !== process.env.SUPER_ADMIN) {
+        delete member.admin;
+      }
+
+      // If the user is not an admin, then the user can not change the member's leader status.
+      if (!user.admin) {
+        delete member.leader;
+      }
+
+      // If the user is not the member, then the user can not change the member's general info.
+      if (userId !== member._id) {
+        delete member.fname;
+        delete member.lname;
+        delete member.email;
+        delete member.phone;
+        delete member.emergencyPhone;
+        delete member.emergencyName;
+      }
+
+      User.findOneAndUpdate({ _id: member._id }, { $set: member }, { new: true }).then(member => {
+        if ( !member ) return member.status(404).send();
+
+        return res.send(member);
+      })
+
+    }).catch(err => {
+      res.status(400).send(err);
+  });
 }
 
 module.exports = router;

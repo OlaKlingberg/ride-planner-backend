@@ -160,7 +160,6 @@ UserSchema.statics.addDummyMembers = function (creatorEmail) {
     users.push(user);
   }
 
-  console.log("About to return User.create(users)");
   return User.create(users);
 };
 
