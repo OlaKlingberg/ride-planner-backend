@@ -24,10 +24,12 @@ app.use('/users', require('./controllers/users.controller'));
 app.use('/cuesheets', require('./controllers/cuesheets.controller'));
 app.use('/rides', require('./controllers/rides.controller'));
 app.use('/geo', require('./controllers/geo.controller'));
+app.use('/email', require('./controllers/email.controller'));
 
 app.get('/', (req, res) => {
   res.send("RidePlanner API is up and running!");
 });
+
 
 server.listen(port, () => {
   console.log(`Started on port ${port}`);

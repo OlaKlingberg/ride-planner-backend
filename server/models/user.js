@@ -6,20 +6,20 @@ const _ = require('lodash');
 const bcrypt = require('bcryptjs');
 
 let UserSchema = new mongoose.Schema({
-    fname: {
-      type: String,
-      required: true,
-      trim: true,
+    admin: {
+      type: Boolean,
+      require:
+        false
     },
-    lname: {
-      type: String,
-      required: true,
-      trim: true
+    dummy: {
+      type: Boolean,
+      require:
+        false
     },
-    phone: {
+    dummyCreator: {
       type: String,
-      required: false,
-      trim: true,
+      require:
+        false
     },
     email: {
       type: String,
@@ -32,61 +32,52 @@ let UserSchema = new mongoose.Schema({
         message: '{VALUE} is not a valid email'
       }
     },
-    fauxSocketId: {
-      type: String,
-      required:
-        false
-    }
-    ,
-    password: {
-      type: String,
-      require:
-        true,
-      minlength:
-        6
-    }
-    ,
     emergencyName: {
       type: String,
       required:
         false,
       trim:
         true
-    }
-    ,
+    },
     emergencyPhone: {
       type: String,
       required:
         false,
       trim:
         true
-    }
-    ,
-    admin: {
-      type: Boolean,
-      require:
-        false
-    }
-    ,
-    dummy: {
-      type: Boolean,
-      require:
-        false
-    }
-    ,
-    dummyCreator: {
+    },
+    fauxSocketId: {
       type: String,
-      require:
+      required:
         false
-    }
-    ,
+    },
+    fname: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     leader: {
       type: Boolean,
       require:
         false
-    }
-    ,
-
+    },
+    lname: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    password: {
+      type: String,
+      require:
+        true,
+      minlength:
+        6
+    },
+    phone: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     tokens: [{
       access: {
         type: String,
@@ -104,27 +95,25 @@ let UserSchema = new mongoose.Schema({
   )
 ;
 
-// Overrides the Mongoose toJSON function, which seems to be applied behind the scenes when the response with the user
-// is sent in users.controller.js. Only the members specified here are included on the user object sent in the
-// response.
-UserSchema.methods.toJSON = function () {
-  const user = this;
-  const userObject = user.toObject();
-
-  return _.omit(userObject, ['password', 'tokens', '__v']);
-};
-
 UserSchema.methods.generateAuthToken = function () {
   const user = this;
   const access = 'auth';
   const token = jwt.sign({ _id: user._id.toHexString() }, process.env.JWT_SECRET);
 
-  user.tokens = [{ access, token }]; // Todo: Is this okay, or will the copying by reference cause any problem?
+  user.tokens.access = token; // Todo: Is this okay, or will the copying by reference cause any problem?
 
   return user.save()
     .then(() => {
       return token;
     });
+};
+
+UserSchema.methods.generatePasswordResetToken = function () {
+  const user = this;
+  const access = 'password-reset';
+
+  // Todo: start here.
+
 };
 
 UserSchema.methods.removeToken = function (token) {
@@ -135,6 +124,16 @@ UserSchema.methods.removeToken = function (token) {
       tokens: { token }
     }
   });
+};
+
+// Overrides the Mongoose toJSON function, which seems to be applied behind the scenes when the response with the user
+// is sent in users.controller.js. Only the members specified here are included on the user object sent in the
+// response.
+UserSchema.methods.toJSON = function () {
+  const user = this;
+  const userObject = user.toObject();
+
+  return _.omit(userObject, ['password', 'tokens', '__v']);
 };
 
 UserSchema.statics.addDummyMembers = function (creatorEmail) {

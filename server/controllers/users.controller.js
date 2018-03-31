@@ -27,6 +27,7 @@ router.get('/delete-dummy-members', authenticate, deleteDummyMembers);
 router.get('/demo-users', getUnusedDemoUsers);
 router.get('/:_id', authenticate, getUser);
 router.patch('/update', authenticate, updateMember);
+router.post('reset-password', resetPassword);
 
 // Route handlers
 function getAllUsers(req, res) {
@@ -185,6 +186,12 @@ function updateMember(req, res) {
     }).catch(err => {
       res.status(400).send(err);
   });
+}
+
+function resetPassword(req, res) {
+
+
+
 }
 
 module.exports = router;
