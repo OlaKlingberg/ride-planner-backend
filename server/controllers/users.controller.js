@@ -27,7 +27,7 @@ router.get('/delete-dummy-members', authenticate, deleteDummyMembers);
 router.get('/demo-users', getUnusedDemoUsers);
 router.get('/:_id', authenticate, getUser);
 router.patch('/update', authenticate, updateMember);
-router.post('reset-password', resetPassword);
+router.post('/reset-password', resetPassword);
 
 // Route handlers
 function getAllUsers(req, res) {
@@ -56,11 +56,12 @@ function registerNewUser(req, res) {
 }
 
 function login(req, res) {
+  console.log("login()");
   if ( UserService.isUserAlreadyLoggedInAndConnected(req.body.email) ) return res.status(401).send("You are already logged in on another device. Log out or close the browser window on that device before logging in here.");
 
   User.findByCredentials(req.body.email, req.body.password)
     .then((user) => {
-      return user.generateAuthToken().then(token => {
+      return user.generateAuthToken().then(token => { // Todo: Why do I return this?
         res.set({
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Expose-Headers': ['x-auth', 'Access-Control-Allow-Origin'],
@@ -189,9 +190,11 @@ function updateMember(req, res) {
 }
 
 function resetPassword(req, res) {
-
-
-
+  User.findOne({ email: req.body.email })
+    .then(user => {
+      if (user) user.generatePasswordResetToken();
+      res.send({ message: "If there is an account with that email address, then an email with a reset-link has been sent." });
+    });
 }
 
 module.exports = router;

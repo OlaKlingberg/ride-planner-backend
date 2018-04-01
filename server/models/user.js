@@ -100,7 +100,7 @@ UserSchema.methods.generateAuthToken = function () {
   const access = 'auth';
   const token = jwt.sign({ _id: user._id.toHexString() }, process.env.JWT_SECRET);
 
-  user.tokens.access = token; // Todo: Is this okay, or will the copying by reference cause any problem?
+  user.tokens = [{ access, token }]; // Todo: Is this okay, or will the copying by reference cause any problem?
 
   return user.save()
     .then(() => {
@@ -111,9 +111,10 @@ UserSchema.methods.generateAuthToken = function () {
 UserSchema.methods.generatePasswordResetToken = function () {
   const user = this;
   const access = 'password-reset';
+  const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
-  // Todo: start here.
-
+  user.tokens.push({ access, token });
+  user.save();
 };
 
 UserSchema.methods.removeToken = function (token) {
@@ -162,23 +163,6 @@ UserSchema.statics.addDummyMembers = function (creatorEmail) {
   return User.create(users);
 };
 
-UserSchema.statics.findByToken = function (token) {
-  const User = this;
-  let decoded;
-
-  try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET);
-  } catch ( e ) {
-    return Promise.reject();
-  }
-
-  return User.findOne({
-    '_id': decoded._id,
-    'tokens.token': token,
-    'tokens.access': 'auth'
-  })
-};
-
 UserSchema.statics.findByCredentials = function (email, password) {
   const User = this;
 
@@ -197,6 +181,26 @@ UserSchema.statics.findByCredentials = function (email, password) {
     });
   })
 };
+
+UserSchema.statics.findByToken = function (token) {
+  console.log("findByToken");
+  const User = this;
+  let decoded;
+
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch ( e ) {
+    return Promise.reject();
+  }
+
+  // Todo: Figure this out: I find it curious that this works, since there is no user object in the db such that user.tokens.access = 'auth'; there are only user objects such that user.tokens[x].access = 'auth'.
+  return User.findOne({
+    '_id': decoded._id,
+    'tokens.access': 'auth',
+    'tokens.token': token
+  });
+};
+
 
 UserSchema.statics.getDemoUsers = function () {
   const User = this;
