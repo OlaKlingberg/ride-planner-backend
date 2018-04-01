@@ -4,6 +4,8 @@ const { ObjectID } = require('mongodb');
 const _ = require('lodash');
 const express = require('express');
 const bodyParser = require('body-parser');
+// const sgMail = require('@sendgrid/mail');
+const sgMail = require('@sendgrid/mail');
 const { authenticate } = require("../middleware/authenticate");
 
 const { mongoose } = require('../db/mongoose'); // So that mongoose.Promise is set to global.Promise.
@@ -13,6 +15,8 @@ const { UserService } = require('../utils/user-service');
 const router = express.Router();
 
 let dummyMembersTimer;
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
 router.use(bodyParser.json());
 
@@ -27,6 +31,7 @@ router.get('/delete-dummy-members', authenticate, deleteDummyMembers);
 router.get('/demo-users', getUnusedDemoUsers);
 router.get('/:_id', authenticate, getUser);
 router.patch('/update', authenticate, updateMember);
+router.post('/reset-password-request', resetPasswordRequest);
 router.post('/reset-password', resetPassword);
 
 // Route handlers
@@ -159,17 +164,17 @@ function updateMember(req, res) {
     .then(user => {
 
       // If the user is not the superAdmin, then the user can not change the member's admin status.
-      if (user.email !== process.env.SUPER_ADMIN) {
+      if ( user.email !== process.env.SUPER_ADMIN ) {
         delete member.admin;
       }
 
       // If the user is not an admin, then the user can not change the member's leader status.
-      if (!user.admin) {
+      if ( !user.admin ) {
         delete member.leader;
       }
 
       // If the user is not the member, then the user can not change the member's general info.
-      if (userId !== member._id) {
+      if ( userId !== member._id ) {
         delete member.fname;
         delete member.lname;
         delete member.email;
@@ -178,6 +183,7 @@ function updateMember(req, res) {
         delete member.emergencyName;
       }
 
+      // Todo: Why findOneAndUpdate? I already have the user.
       User.findOneAndUpdate({ _id: member._id }, { $set: member }, { new: true }).then(member => {
         if ( !member ) return member.status(404).send();
 
@@ -185,16 +191,57 @@ function updateMember(req, res) {
       })
 
     }).catch(err => {
-      res.status(400).send(err);
+    res.status(400).send(err);
   });
 }
 
-function resetPassword(req, res) {
-  User.findOne({ email: req.body.email })
+function resetPasswordRequest(req, res) {
+  console.log("resetPasswordRequest()");
+  const email = req.body.email;
+  const host = req.body.host;
+  User.findOne({ email })
     .then(user => {
-      if (user) user.generatePasswordResetToken();
+      if ( user ) {
+        user.generatePasswordResetToken()
+          .then(token => {
+            const resetUrl = `http://${host}/auth/password-reset?email=${email}&token=${token}`;
+            const msg = {
+              to: email,
+              from: 'noreply@olaklingberg.com',
+              subject: 'RidePlanner Password Reset',
+              html: `Did you just request to have your RidePlanner password reset? If so, click on this link to reset your password: <a href="${resetUrl}">Password Reset</a>. If you didn't request to have you password reset, then please ignore this email.`
+            };
+            sgMail.send(msg);
+          });
+      }
+
       res.send({ message: "If there is an account with that email address, then an email with a reset-link has been sent." });
     });
 }
 
+function resetPassword(req, res) {
+  console.log("resetPassword()");
+  const email = req.body.email;
+  const token = req.body.token;
+  const password = req.body.password;
+
+  User.findOne({ email })
+    .then(user => {
+      if ( user && user.passwordResetToken.token === token && Date.now() - user.passwordResetToken.timestamp < 1800000) {
+        user.password = password;
+        user.passwordResetToken = null;
+        user.save((err, user) => {
+          // Todo: Handle error!
+          res.send({ message: "Your password has been reset. Please log in using your new password." });
+        });
+      } else {
+        // Todo: How do I want to handle this?
+        res.status(400).send();
+      }
+    })
+
+}
+
 module.exports = router;
+
+

@@ -8,18 +8,15 @@ const bcrypt = require('bcryptjs');
 let UserSchema = new mongoose.Schema({
     admin: {
       type: Boolean,
-      require:
-        false
+      required: false
     },
     dummy: {
       type: Boolean,
-      require:
-        false
+      required: false
     },
     dummyCreator: {
       type: String,
-      require:
-        false
+      required: false
     },
     email: {
       type: String,
@@ -34,22 +31,17 @@ let UserSchema = new mongoose.Schema({
     },
     emergencyName: {
       type: String,
-      required:
-        false,
-      trim:
-        true
+      required: false,
+      trim: true
     },
     emergencyPhone: {
       type: String,
-      required:
-        false,
-      trim:
-        true
+      required: false,
+      trim: true
     },
     fauxSocketId: {
       type: String,
-      required:
-        false
+      required: false
     },
     fname: {
       type: String,
@@ -58,8 +50,7 @@ let UserSchema = new mongoose.Schema({
     },
     leader: {
       type: Boolean,
-      require:
-        false
+      require: false
     },
     lname: {
       type: String,
@@ -68,10 +59,8 @@ let UserSchema = new mongoose.Schema({
     },
     password: {
       type: String,
-      require:
-        true,
-      minlength:
-        6
+      required: true,
+      minlength: 6
     },
     phone: {
       type: String,
@@ -81,13 +70,23 @@ let UserSchema = new mongoose.Schema({
     tokens: [{
       access: {
         type: String,
-        require: true
+        required: true
       },
       token: {
         type: String,
-        require: true
+        required: true
       }
-    }]
+    }],
+    passwordResetToken: {
+      token: {
+        type: String,
+        required: false
+      },
+      timestamp: {
+        type: String,
+        required: false
+      }
+    },
   },
   {
     timestamps: true
@@ -109,12 +108,18 @@ UserSchema.methods.generateAuthToken = function () {
 };
 
 UserSchema.methods.generatePasswordResetToken = function () {
-  const user = this;
-  const access = 'password-reset';
+  let user = this;
   const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const timestamp = Date.now();
+  console.log("timestamp:", timestamp);
 
-  user.tokens.push({ access, token });
-  user.save();
+  user.passwordResetToken = { token, timestamp };
+  console.log("user.passwordResetToken:", user.passwordResetToken);
+
+  return user.save()
+    .then(() => {
+      return token;
+    });
 };
 
 UserSchema.methods.removeToken = function (token) {
@@ -193,7 +198,8 @@ UserSchema.statics.findByToken = function (token) {
     return Promise.reject();
   }
 
-  // Todo: Figure this out: I find it curious that this works, since there is no user object in the db such that user.tokens.access = 'auth'; there are only user objects such that user.tokens[x].access = 'auth'.
+  // Todo: Figure this out: I find it curious that this works, since there is no user object in the db such that
+  // user.tokens.access = 'auth'; there are only user objects such that user.tokens[x].access = 'auth'.
   return User.findOne({
     '_id': decoded._id,
     'tokens.access': 'auth',
